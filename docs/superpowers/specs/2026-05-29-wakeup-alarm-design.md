@@ -30,6 +30,8 @@ without completing its missions.
 - Personal sideload: runtime permissions handled in-app; no store policy work.
 - End-to-end testing requires a **real device or emulator** (alarm firing,
   full-screen intent, real sensors cannot be unit-tested).
+- **Test device: Google Pixel 9** (recent Android — verify exact `targetSdk`
+  and permission behavior against its installed version during implementation).
 
 ## 3. Architecture
 
