@@ -17,6 +17,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 
 /** Returns true when all alarm-critical permissions are satisfied. */
 fun alarmPermissionsGranted(context: Context): Boolean {
@@ -34,6 +37,17 @@ fun PermissionsScreen(onAllGranted: () -> Unit) {
     val context = LocalContext.current
     var refresh by remember { mutableStateOf(0) }
     val granted = remember(refresh) { alarmPermissionsGranted(context) }
+
+    // Re-check permissions whenever we return to this screen (e.g. back from the
+    // exact-alarm or battery-optimization Settings pages, which have no result callback).
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) refresh++
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     LaunchedEffect(granted) { if (granted) onAllGranted() }
 

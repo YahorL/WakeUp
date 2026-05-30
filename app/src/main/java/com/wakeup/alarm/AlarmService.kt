@@ -7,6 +7,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.media.RingtoneManager
@@ -40,28 +41,46 @@ class AlarmService : Service() {
         if (alarmId < 0) { stopSelf(); return START_NOT_STICKY }
 
         acquireWakeLock()
-        startForeground(AlarmContract.NOTIFICATION_ID, buildNotification(alarmId, snoozesUsed))
+        val notification = buildNotification(alarmId, snoozesUsed)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(AlarmContract.NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+        } else {
+            startForeground(AlarmContract.NOTIFICATION_ID, notification)
+        }
         scope.launch { ringFor(alarmId) }
         return START_STICKY
     }
 
     private suspend fun ringFor(alarmId: Long) {
         val alarm = Graph.repository.getAlarm(alarmId)
-        val soundUri = alarm?.soundUri?.let { Uri.parse(it) }
-            ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-        player = MediaPlayer().apply {
-            setAudioAttributes(
-                AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()
-            )
-            isLooping = true
-            setDataSource(this@AlarmService, soundUri)
-            prepare()
+        val configured = alarm?.soundUri?.let { Uri.parse(it) }
+        val default = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+        // Try the configured ringtone, then fall back to the default if it can't be played (spec §10).
+        player = buildPlayer(configured) ?: buildPlayer(default)
+        player?.apply {
             if (alarm?.gradualVolume == true) setVolume(0f, 0f)
             start()
         }
         if (alarm?.vibrate != false) startVibration()
         if (alarm?.gradualVolume == true) rampVolume(alarm.rampSeconds)
+    }
+
+    /** Builds and prepares a looping alarm MediaPlayer for [uri], or null if it can't be prepared. */
+    private fun buildPlayer(uri: Uri?): MediaPlayer? {
+        if (uri == null) return null
+        return try {
+            MediaPlayer().apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build()
+                )
+                isLooping = true
+                setDataSource(this@AlarmService, uri)
+                prepare()
+            }
+        } catch (e: Exception) {
+            null
+        }
     }
 
     private suspend fun rampVolume(seconds: Int) {
