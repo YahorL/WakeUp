@@ -10,33 +10,48 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlin.math.sqrt
 
+/**
+ * Derives the world-vertical (up-positive) linear acceleration by projecting the gravity-removed
+ * linear-acceleration vector onto the gravity direction, and feeds it to [SquatMotionCounter],
+ * which integrates to a vertical displacement so only a genuine knee-bend distance counts (a brief
+ * jerk has a big acceleration spike but almost no displacement).
+ */
 class AccelerometerSquatDetector(context: Context) : SquatDetector {
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-    private val accelerometer: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+    private val linearAccel: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
+    private val gravitySensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY)
 
-    // We feed the DEVIATION of total-acceleration magnitude from gravity (~9.81 m/s², which is
-    // orientation-independent) into the counter. A real squat = a descent (dip below downThreshold)
-    // followed by the sharp deceleration spike at the bottom (peak above upThreshold). Tuned from
-    // on-device traces: real squats spike to +4..+6.5, while merely standing up only reaches ~+2.6,
-    // so upThreshold = +3.0 rejects non-squat movement and the spike occurs once per squat.
-    private val counter = SquatCounter(downThreshold = -1.5f, upThreshold = 3.0f, minRepIntervalMs = 700)
+    private val core = SquatDetectorCore()
 
     override fun repCounts(): Flow<Int> = callbackFlow {
-        counter.reset()
+        core.reset()
         trySend(0)
+        val gravity = FloatArray(3)
+        var haveGravity = false
+
         val listener = object : SensorEventListener {
             override fun onSensorChanged(event: SensorEvent) {
-                val x = event.values[0]; val y = event.values[1]; val z = event.values[2]
-                val magnitude = sqrt(x * x + y * y + z * z)
-                val deviation = magnitude - SensorManager.GRAVITY_EARTH // ~9.80665
-                val tsMs = event.timestamp / 1_000_000L // ns → ms
-                if (counter.onSample(deviation, tsMs)) trySend(counter.count)
+                when (event.sensor.type) {
+                    Sensor.TYPE_GRAVITY -> {
+                        gravity[0] = event.values[0]; gravity[1] = event.values[1]; gravity[2] = event.values[2]
+                        haveGravity = true
+                    }
+                    Sensor.TYPE_LINEAR_ACCELERATION -> {
+                        if (!haveGravity) return
+                        val gMag = sqrt(gravity[0] * gravity[0] + gravity[1] * gravity[1] + gravity[2] * gravity[2])
+                        if (gMag < 1e-3f) return
+                        // up = -gravity/|gravity|; vertical accel (up positive) = linear · up
+                        val dot = event.values[0] * gravity[0] + event.values[1] * gravity[1] + event.values[2] * gravity[2]
+                        val verticalAccel = -dot / gMag
+                        val tsMs = event.timestamp / 1_000_000L
+                        if (core.onSample(verticalAccel, tsMs)) trySend(core.count)
+                    }
+                }
             }
             override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
         }
-        if (accelerometer != null) {
-            sensorManager.registerListener(listener, accelerometer, SensorManager.SENSOR_DELAY_GAME)
-        }
+        if (linearAccel != null) sensorManager.registerListener(listener, linearAccel, SensorManager.SENSOR_DELAY_GAME)
+        if (gravitySensor != null) sensorManager.registerListener(listener, gravitySensor, SensorManager.SENSOR_DELAY_GAME)
         awaitClose { sensorManager.unregisterListener(listener) }
     }
 }
