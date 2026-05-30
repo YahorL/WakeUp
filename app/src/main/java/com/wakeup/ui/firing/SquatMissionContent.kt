@@ -20,7 +20,10 @@ fun SquatMissionContent(
 ) {
     val context = LocalContext.current
     val detector = remember(detectorOverride) { detectorOverride ?: AccelerometerSquatDetector(context) }
-    val reps by detector.repCounts().collectAsStateWithLifecycle(initialValue = 0)
+    // Remember the flow itself, not just the detector: calling repCounts() on every recomposition
+    // would restart the sensor flow and reset the rep count to 0 each time.
+    val repFlow = remember(detector) { detector.repCounts() }
+    val reps by repFlow.collectAsStateWithLifecycle(initialValue = 0)
 
     LaunchedEffect(reps) { if (reps >= params.squatCount) onComplete() }
 
