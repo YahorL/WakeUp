@@ -12,12 +12,16 @@ import com.wakeup.domain.Alarm
 import com.wakeup.domain.RepeatDays
 import com.wakeup.ui.firing.MissionHost
 import com.wakeup.ui.theme.WakeUpTheme
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class AlarmActivity : ComponentActivity() {
     private var alarmId: Long = -1L
     private var snoozesUsed: Int = 0
     private var completed = false
+    private var soundPaused = false
+    private var resumeJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,6 +42,7 @@ class AlarmActivity : ComponentActivity() {
                         snoozesUsed = snoozesUsed,
                         onAllComplete = { dismiss(alarm) },
                         onSnooze = { snooze() },
+                        onEngaged = { onMissionEngaged() },
                     )
                 }
             }
@@ -56,8 +61,27 @@ class AlarmActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Called whenever the user is actively working a mission (typing a math answer / completing a
+     * squat). Pauses the ringtone and resumes it after a short idle, so the alarm goes quiet while
+     * you comply but nags again if you stall.
+     */
+    private fun onMissionEngaged() {
+        if (!soundPaused) {
+            AlarmService.pauseSound(this)
+            soundPaused = true
+        }
+        resumeJob?.cancel()
+        resumeJob = lifecycleScope.launch {
+            delay(4000)
+            AlarmService.resumeSound(this@AlarmActivity)
+            soundPaused = false
+        }
+    }
+
     private fun dismiss(alarm: Alarm) {
         completed = true
+        resumeJob?.cancel()
         AlarmService.stop(this)
         lifecycleScope.launch {
             if (RepeatDays.isOneShot(alarm.repeatDays)) {
@@ -72,6 +96,7 @@ class AlarmActivity : ComponentActivity() {
 
     private fun snooze() {
         completed = true
+        resumeJob?.cancel()
         val snoozeIntent = Intent(this, AlarmReceiver::class.java).apply {
             action = AlarmContract.ACTION_SNOOZE
             putExtra(AlarmContract.EXTRA_ALARM_ID, alarmId)

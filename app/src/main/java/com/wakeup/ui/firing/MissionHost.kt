@@ -17,6 +17,7 @@ fun MissionHost(
     snoozesUsed: Int,
     onAllComplete: () -> Unit,
     onSnooze: () -> Unit,
+    onEngaged: () -> Unit = {},
 ) {
     var index by remember { mutableStateOf(0) }
     val canSnooze = SnoozePolicy.canSnooze(alarm.snoozeEnabled, alarm.maxSnoozes, snoozesUsed)
@@ -40,8 +41,8 @@ fun MissionHost(
                 if (index + 1 >= alarm.missions.size) onAllComplete() else index++
             }
             when (val p = mission.params) {
-                is MathParams -> MathMissionContent(params = p, onComplete = advance)
-                is SquatParams -> SquatMissionContent(params = p, onComplete = advance)
+                is MathParams -> MathMissionContent(params = p, onComplete = advance, onEngaged = onEngaged)
+                is SquatParams -> SquatMissionContent(params = p, onComplete = advance, onEngaged = onEngaged)
             }
         }
     }

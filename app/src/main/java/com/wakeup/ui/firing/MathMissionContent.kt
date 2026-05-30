@@ -15,7 +15,7 @@ import com.wakeup.mission.MathProblem
 import com.wakeup.mission.MathProblemGenerator
 
 @Composable
-fun MathMissionContent(params: MathParams, onComplete: () -> Unit) {
+fun MathMissionContent(params: MathParams, onComplete: () -> Unit, onEngaged: () -> Unit = {}) {
     val generator = remember { MathProblemGenerator() }
     var solved by remember { mutableStateOf(0) }
     var problem by remember { mutableStateOf<MathProblem>(generator.generate(params.difficulty)) }
@@ -34,7 +34,7 @@ fun MathMissionContent(params: MathParams, onComplete: () -> Unit) {
         Spacer(Modifier.height(24.dp))
         OutlinedTextField(
             value = input,
-            onValueChange = { input = it.filter { c -> c.isDigit() || c == '-' }; error = false },
+            onValueChange = { input = it.filter { c -> c.isDigit() || c == '-' }; error = false; onEngaged() },
             isError = error,
             label = { Text(if (error) "Wrong — try again" else "Answer") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),

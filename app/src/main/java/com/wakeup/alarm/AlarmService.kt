@@ -36,6 +36,19 @@ class AlarmService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Pause/resume the ringtone while the user is actively working a mission. These arrive
+        // while the service is already foreground, so we just adjust the player and return.
+        when (intent?.action) {
+            AlarmContract.ACTION_PAUSE_SOUND -> {
+                player?.takeIf { it.isPlaying }?.pause()
+                return START_STICKY
+            }
+            AlarmContract.ACTION_RESUME_SOUND -> {
+                player?.let { if (!it.isPlaying) it.start() }
+                return START_STICKY
+            }
+        }
+
         val alarmId = intent?.getLongExtra(AlarmContract.EXTRA_ALARM_ID, -1L) ?: -1L
         val snoozesUsed = intent?.getIntExtra(AlarmContract.EXTRA_SNOOZES_USED, 0) ?: 0
         if (alarmId < 0) { stopSelf(); return START_NOT_STICKY }
@@ -146,5 +159,11 @@ class AlarmService : Service() {
 
     companion object {
         fun stop(context: Context) = context.stopService(Intent(context, AlarmService::class.java))
+
+        fun pauseSound(context: Context) =
+            context.startService(Intent(context, AlarmService::class.java).setAction(AlarmContract.ACTION_PAUSE_SOUND))
+
+        fun resumeSound(context: Context) =
+            context.startService(Intent(context, AlarmService::class.java).setAction(AlarmContract.ACTION_RESUME_SOUND))
     }
 }

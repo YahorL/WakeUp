@@ -16,6 +16,7 @@ import com.wakeup.mission.SquatDetector
 fun SquatMissionContent(
     params: SquatParams,
     onComplete: () -> Unit,
+    onEngaged: () -> Unit = {},
     detectorOverride: SquatDetector? = null, // for previews/tests
 ) {
     val context = LocalContext.current
@@ -25,7 +26,10 @@ fun SquatMissionContent(
     val repFlow = remember(detector) { detector.repCounts() }
     val reps by repFlow.collectAsStateWithLifecycle(initialValue = 0)
 
-    LaunchedEffect(reps) { if (reps >= params.squatCount) onComplete() }
+    LaunchedEffect(reps) {
+        if (reps > 0) onEngaged()
+        if (reps >= params.squatCount) onComplete()
+    }
 
     Column(
         Modifier.fillMaxSize().padding(24.dp),
