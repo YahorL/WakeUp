@@ -2,6 +2,7 @@ package com.wakeup.ui.edit
 
 import com.wakeup.data.FakeAlarmRepository
 import com.wakeup.domain.*
+import com.wakeup.schedule.NoopScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.*
@@ -17,7 +18,7 @@ class AlarmEditViewModelTest {
     @After fun tearDown() = Dispatchers.resetMain()
 
     @Test fun newAlarmStartsFromDefaults() = runTest {
-        val vm = AlarmEditViewModel(FakeAlarmRepository(), alarmId = null)
+        val vm = AlarmEditViewModel(FakeAlarmRepository(), alarmId = null, scheduler = NoopScheduler())
         advanceUntilIdle()
         val d = vm.draft.value
         assertEquals(2, d.missions.size)
@@ -25,7 +26,7 @@ class AlarmEditViewModelTest {
     }
 
     @Test fun editingFieldsUpdatesDraft() = runTest {
-        val vm = AlarmEditViewModel(FakeAlarmRepository(), alarmId = null)
+        val vm = AlarmEditViewModel(FakeAlarmRepository(), alarmId = null, scheduler = NoopScheduler())
         advanceUntilIdle()
         vm.setTime(6, 15)
         vm.setLabel("Run")
@@ -37,7 +38,7 @@ class AlarmEditViewModelTest {
     }
 
     @Test fun addRemoveAndReorderMissions() = runTest {
-        val vm = AlarmEditViewModel(FakeAlarmRepository(), alarmId = null)
+        val vm = AlarmEditViewModel(FakeAlarmRepository(), alarmId = null, scheduler = NoopScheduler())
         advanceUntilIdle()
         vm.removeMission(0)
         assertEquals(1, vm.draft.value.missions.size)
@@ -48,7 +49,7 @@ class AlarmEditViewModelTest {
 
     @Test fun saveWritesToRepository() = runTest {
         val repo = FakeAlarmRepository()
-        val vm = AlarmEditViewModel(repo, alarmId = null)
+        val vm = AlarmEditViewModel(repo, alarmId = null, scheduler = NoopScheduler())
         advanceUntilIdle()
         vm.setTime(9, 0)
         vm.save()

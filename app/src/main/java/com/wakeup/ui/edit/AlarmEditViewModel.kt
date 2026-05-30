@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.wakeup.data.AlarmRepository
 import com.wakeup.di.Graph
 import com.wakeup.domain.*
+import com.wakeup.schedule.AlarmScheduler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,6 +15,7 @@ import kotlinx.coroutines.launch
 class AlarmEditViewModel(
     private val repository: AlarmRepository,
     private val alarmId: Long?,
+    private val scheduler: AlarmScheduler,
 ) : ViewModel() {
 
     private val _draft = MutableStateFlow(Alarm.default(hour = 7, minute = 0))
@@ -65,6 +67,7 @@ class AlarmEditViewModel(
 
     fun save(onSaved: (Long) -> Unit = {}) = viewModelScope.launch {
         val id = repository.upsert(_draft.value)
+        scheduler.schedule(_draft.value.copy(id = id))
         onSaved(id)
     }
 
@@ -75,7 +78,7 @@ class AlarmEditViewModel(
         fun factory(alarmId: Long?): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                AlarmEditViewModel(Graph.repository, alarmId) as T
+                AlarmEditViewModel(Graph.repository, alarmId, Graph.scheduler) as T
         }
     }
 }

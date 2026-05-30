@@ -2,6 +2,7 @@ package com.wakeup.ui.list
 
 import com.wakeup.data.FakeAlarmRepository
 import com.wakeup.domain.Alarm
+import com.wakeup.schedule.NoopScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -20,7 +21,7 @@ class AlarmListViewModelTest {
     @Test fun togglePersistsEnabledState() = runTest {
         val repo = FakeAlarmRepository()
         val id = repo.upsert(Alarm(hour = 7, minute = 0, enabled = true))
-        val vm = AlarmListViewModel(repo)
+        val vm = AlarmListViewModel(repo, NoopScheduler())
         vm.setEnabled(id, false)
         advanceUntilIdle()
         assertFalse(repo.getAlarm(id)!!.enabled)
@@ -29,7 +30,7 @@ class AlarmListViewModelTest {
     @Test fun deleteRemovesAlarm() = runTest {
         val repo = FakeAlarmRepository()
         val id = repo.upsert(Alarm(hour = 7, minute = 0))
-        val vm = AlarmListViewModel(repo)
+        val vm = AlarmListViewModel(repo, NoopScheduler())
         vm.delete(id)
         advanceUntilIdle()
         assertNull(repo.getAlarm(id))
@@ -38,7 +39,7 @@ class AlarmListViewModelTest {
     @Test fun exposesAlarmsFromRepository() = runTest {
         val repo = FakeAlarmRepository()
         repo.upsert(Alarm(hour = 6, minute = 0))
-        val vm = AlarmListViewModel(repo)
+        val vm = AlarmListViewModel(repo, NoopScheduler())
         advanceUntilIdle()
         assertEquals(1, vm.alarms.first().size)
     }
