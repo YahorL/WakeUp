@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.lifecycle.lifecycleScope
 import com.wakeup.di.Graph
@@ -16,11 +17,15 @@ import kotlinx.coroutines.launch
 class AlarmActivity : ComponentActivity() {
     private var alarmId: Long = -1L
     private var snoozesUsed: Int = 0
+    private var completed = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Graph.init(this)
         showWhenLockedAndTurnScreenOn()
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() { /* swallow: missions must be completed */ }
+        })
         alarmId = intent.getLongExtra(AlarmContract.EXTRA_ALARM_ID, -1L)
         snoozesUsed = intent.getIntExtra(AlarmContract.EXTRA_SNOOZES_USED, 0)
 
@@ -39,7 +44,20 @@ class AlarmActivity : ComponentActivity() {
         }
     }
 
+    override fun onStop() {
+        super.onStop()
+        if (!completed && !isFinishing) {
+            // Brought to background without completing — relaunch over the lock screen.
+            startActivity(Intent(this, AlarmActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                putExtra(AlarmContract.EXTRA_ALARM_ID, alarmId)
+                putExtra(AlarmContract.EXTRA_SNOOZES_USED, snoozesUsed)
+            })
+        }
+    }
+
     private fun dismiss(alarm: Alarm) {
+        completed = true
         AlarmService.stop(this)
         lifecycleScope.launch {
             if (RepeatDays.isOneShot(alarm.repeatDays)) {
@@ -53,6 +71,7 @@ class AlarmActivity : ComponentActivity() {
     }
 
     private fun snooze() {
+        completed = true
         val snoozeIntent = Intent(this, AlarmReceiver::class.java).apply {
             action = AlarmContract.ACTION_SNOOZE
             putExtra(AlarmContract.EXTRA_ALARM_ID, alarmId)
