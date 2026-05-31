@@ -39,7 +39,8 @@ fun alarmPermissionsGranted(context: Context): Boolean {
     val exact = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
         (context.getSystemService(Context.ALARM_SERVICE) as AlarmManager).canScheduleExactAlarms()
     else true
-    return notif && exact
+    val overlay = Settings.canDrawOverlays(context)
+    return notif && exact && overlay
 }
 
 @Composable
@@ -89,6 +90,9 @@ fun PermissionsScreen(onAllGranted: () -> Unit) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     context.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:${context.packageName}")))
                 }
+            }
+            AccentButton("Allow display over other apps") {
+                context.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}")))
             }
             OutlineButton("Disable battery optimization") {
                 context.startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${context.packageName}")))

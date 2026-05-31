@@ -141,10 +141,12 @@ class AlarmService : Service() {
         return NotificationCompat.Builder(this, AlarmContract.NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle("Alarm")
-            .setContentText("Tap to dismiss")
+            .setContentText("Tap to wake up")
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setOngoing(true)
+            .setAutoCancel(false)
+            .setContentIntent(fsPending) // tapping returns to the wake-up screen
             .setFullScreenIntent(fsPending, true)
             .build()
     }

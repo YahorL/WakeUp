@@ -2,6 +2,7 @@ package com.wakeup.ui.list
 
 import com.wakeup.data.FakeAlarmRepository
 import com.wakeup.domain.Alarm
+import com.wakeup.schedule.AlarmScheduler
 import com.wakeup.schedule.NoopScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -25,6 +26,23 @@ class AlarmListViewModelTest {
         vm.setEnabled(id, false)
         advanceUntilIdle()
         assertFalse(repo.getAlarm(id)!!.enabled)
+    }
+
+    @Test fun disablingActiveAlarmKeepsItScheduled() = runTest {
+        val repo = FakeAlarmRepository()
+        val id = repo.upsert(Alarm(hour = 7, minute = 0, enabled = true))
+        val cancels = mutableListOf<Long>()
+        val recording = object : AlarmScheduler {
+            override fun schedule(alarm: Alarm) {}
+            override fun cancel(alarmId: Long) { cancels.add(alarmId) }
+            override fun scheduleSnooze(alarmId: Long, triggerAtMillis: Long, snoozesUsed: Int) {}
+        }
+        // This alarm is mid-ring.
+        val vm = AlarmListViewModel(repo, recording, activeAlarmId = { id })
+        vm.setEnabled(id, false)
+        advanceUntilIdle()
+        assertFalse(repo.getAlarm(id)!!.enabled)        // future occurrences off
+        assertTrue("active alarm's pending snooze must not be cancelled", cancels.isEmpty())
     }
 
     @Test fun deleteRemovesAlarm() = runTest {

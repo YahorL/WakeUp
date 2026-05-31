@@ -84,7 +84,7 @@ class AlarmActivity : ComponentActivity() {
         }
         resumeJob?.cancel()
         resumeJob = lifecycleScope.launch {
-            delay(4000)
+            delay(10_000)
             AlarmService.resumeSound(this@AlarmActivity)
             soundPaused = false
         }
@@ -94,12 +94,16 @@ class AlarmActivity : ComponentActivity() {
         completed = true
         resumeJob?.cancel()
         AlarmService.stop(this) // silence immediately as the "Alarm off" screen appears
+        Graph.ringState.clear() // ring cycle is over — disabling in-app may cancel again normally
         lifecycleScope.launch {
-            if (RepeatDays.isOneShot(alarm.repeatDays)) {
+            // Re-read enabled state: the user may have disabled this alarm mid-cycle (which keeps
+            // the current snooze ringing but should NOT re-arm a future occurrence).
+            val current = Graph.repository.getAlarm(alarm.id)
+            if (current == null || RepeatDays.isOneShot(current.repeatDays) || !current.enabled) {
                 Graph.repository.setEnabled(alarm.id, false)
                 Graph.scheduler.cancel(alarm.id)
             } else {
-                Graph.scheduler.schedule(alarm)
+                Graph.scheduler.schedule(current)
             }
             delay(2200) // let the "Alarm off" confirmation linger before closing
             finish()
