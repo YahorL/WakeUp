@@ -32,10 +32,12 @@ class MathProblemGenerator(private val random: Random = Random.Default) {
     private fun hard(): MathProblem {
         val a = random.nextInt(2, 13)
         val b = random.nextInt(2, 13)
-        val c = random.nextInt(1, 50)
         return if (random.nextBoolean()) {
+            val c = random.nextInt(1, 50)
             MathProblem("$a * $b + $c", a * b + c)
         } else {
+            // Keep the result non-negative — the wake-up keypad has no minus key.
+            val c = random.nextInt(1, a * b)
             MathProblem("$a * $b - $c", a * b - c)
         }
     }

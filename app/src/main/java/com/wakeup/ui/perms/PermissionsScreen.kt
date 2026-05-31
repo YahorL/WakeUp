@@ -10,16 +10,26 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.wakeup.ui.components.noRippleClickable
+import com.wakeup.ui.theme.Screen
+import com.wakeup.ui.theme.Wake
 
 /** Returns true when all alarm-critical permissions are satisfied. */
 fun alarmPermissionsGranted(context: Context): Boolean {
@@ -35,6 +45,8 @@ fun alarmPermissionsGranted(context: Context): Boolean {
 @Composable
 fun PermissionsScreen(onAllGranted: () -> Unit) {
     val context = LocalContext.current
+    val colors = Wake.colors
+    val fonts = Wake.fonts
     var refresh by remember { mutableStateOf(0) }
     val granted = remember(refresh) { alarmPermissionsGranted(context) }
 
@@ -55,28 +67,60 @@ fun PermissionsScreen(onAllGranted: () -> Unit) {
         ActivityResultContracts.RequestPermission()
     ) { refresh++ }
 
-    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Permissions needed", style = MaterialTheme.typography.headlineSmall)
-        Text("WakeUp needs these to ring reliably over the lock screen.")
+    Screen {
+        Column(
+            Modifier.fillMaxSize().systemBarsPadding().padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Spacer(Modifier.height(8.dp))
+            Text("Permissions needed", color = colors.text, fontFamily = fonts.display, fontWeight = FontWeight.Medium, fontSize = 30.sp, letterSpacing = (-0.5).sp)
+            Text(
+                "WakeUp needs these to ring reliably over the lock screen.",
+                color = colors.textDim, fontFamily = fonts.ui, fontSize = 14.5.sp, lineHeight = 22.sp,
+            )
+            Spacer(Modifier.height(6.dp))
 
-        Button(onClick = {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
-                notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            else refresh++
-        }) { Text("Allow notifications") }
-
-        Button(onClick = {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                context.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
-                    Uri.parse("package:${context.packageName}")))
+            AccentButton("Allow notifications") {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+                    notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                else refresh++
             }
-        }) { Text("Allow exact alarms") }
+            AccentButton("Allow exact alarms") {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    context.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:${context.packageName}")))
+                }
+            }
+            OutlineButton("Disable battery optimization") {
+                context.startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${context.packageName}")))
+            }
 
-        Button(onClick = {
-            context.startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                Uri.parse("package:${context.packageName}")))
-        }) { Text("Disable battery optimization") }
+            Spacer(Modifier.weight(1f))
+            Box(Modifier.fillMaxWidth().noRippleClickable { refresh++ }.padding(12.dp), contentAlignment = Alignment.Center) {
+                Text("I've granted these — continue", color = colors.textDim, fontFamily = fonts.ui, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            }
+        }
+    }
+}
 
-        TextButton(onClick = { refresh++ }) { Text("I've granted these — continue") }
+@Composable
+private fun AccentButton(label: String, onClick: () -> Unit) {
+    val colors = Wake.colors
+    Box(
+        Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(16.dp)).background(colors.accent).noRippleClickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(label, color = colors.onAccent, fontFamily = Wake.fonts.ui, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+    }
+}
+
+@Composable
+private fun OutlineButton(label: String, onClick: () -> Unit) {
+    val colors = Wake.colors
+    Box(
+        Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(16.dp))
+            .border(1.5.dp, colors.hairStrong, RoundedCornerShape(16.dp)).noRippleClickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(label, color = colors.text, fontFamily = Wake.fonts.ui, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
     }
 }

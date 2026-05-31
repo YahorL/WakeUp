@@ -24,12 +24,15 @@ data class Alarm(
     val missions: List<MissionConfig> = emptyList(),
 ) {
     companion object {
-        /** Defaults from the spec: medium math x3, then 10 squats. */
+        /** Design default for a new alarm: 15 squats, then medium math ×3 (the wake-up flow runs
+         *  missions in order — squats then math). Repeats on weekdays. */
         fun default(hour: Int, minute: Int): Alarm = Alarm(
             hour = hour, minute = minute,
+            label = "Wake up",
+            repeatDays = 0b0011111, // Mon–Fri
             missions = listOf(
-                MissionConfig(order = 0, type = MissionType.MATH, params = MathParams(Difficulty.MEDIUM, 3)),
-                MissionConfig(order = 1, type = MissionType.SQUAT, params = SquatParams(10)),
+                MissionConfig(order = 0, type = MissionType.SQUAT, params = SquatParams(15)),
+                MissionConfig(order = 1, type = MissionType.MATH, params = MathParams(Difficulty.MEDIUM, 3)),
             ),
         )
     }

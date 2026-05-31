@@ -22,7 +22,21 @@ class AlarmEditViewModelTest {
         advanceUntilIdle()
         val d = vm.draft.value
         assertEquals(2, d.missions.size)
-        assertEquals(MissionType.MATH, d.missions[0].type)
+        assertEquals(MissionType.SQUAT, d.missions[0].type)
+    }
+
+    @Test fun squatAndMathHelpersMaintainSquatFirstOrder() = runTest {
+        val vm = AlarmEditViewModel(FakeAlarmRepository(), alarmId = null, scheduler = NoopScheduler())
+        advanceUntilIdle()
+        vm.setSquatsEnabled(false)
+        assertEquals(1, vm.draft.value.missions.size)
+        assertEquals(MissionType.MATH, vm.draft.value.missions[0].type)
+        vm.setSquatsEnabled(true)
+        assertEquals(MissionType.SQUAT, vm.draft.value.missions[0].type)
+        assertEquals(MissionType.MATH, vm.draft.value.missions[1].type)
+        vm.setMathEnabled(false)
+        assertEquals(1, vm.draft.value.missions.size)
+        assertEquals(MissionType.SQUAT, vm.draft.value.missions[0].type)
     }
 
     @Test fun editingFieldsUpdatesDraft() = runTest {
@@ -30,11 +44,11 @@ class AlarmEditViewModelTest {
         advanceUntilIdle()
         vm.setTime(6, 15)
         vm.setLabel("Run")
-        vm.toggleRepeatDay(0)
+        vm.toggleRepeatDay(6) // Sunday — off in the weekday default
         val d = vm.draft.value
         assertEquals(6, d.hour); assertEquals(15, d.minute)
         assertEquals("Run", d.label)
-        assertTrue(RepeatDays.isSet(d.repeatDays, 0))
+        assertTrue(RepeatDays.isSet(d.repeatDays, 6))
     }
 
     @Test fun addRemoveAndReorderMissions() = runTest {

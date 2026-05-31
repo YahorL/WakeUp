@@ -7,11 +7,14 @@ import com.wakeup.data.AppDatabase
 import com.wakeup.data.RoomAlarmRepository
 import com.wakeup.schedule.AlarmManagerScheduler
 import com.wakeup.schedule.AlarmScheduler
+import com.wakeup.settings.SettingsStore
 
 object Graph {
     lateinit var repository: AlarmRepository
         private set
     lateinit var scheduler: AlarmScheduler
+        private set
+    lateinit var settings: SettingsStore
         private set
 
     @Volatile
@@ -24,6 +27,7 @@ object Graph {
         ).build()
         repository = RoomAlarmRepository(db.alarmDao())
         scheduler = AlarmManagerScheduler(context.applicationContext)
+        settings = SettingsStore(context.applicationContext)
         initialized = true
     }
 }
