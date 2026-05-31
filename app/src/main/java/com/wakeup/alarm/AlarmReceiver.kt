@@ -24,12 +24,25 @@ class AlarmReceiver : BroadcastReceiver() {
         val alarmId = intent.getLongExtra(AlarmContract.EXTRA_ALARM_ID, -1L)
         val snoozesUsed = intent.getIntExtra(AlarmContract.EXTRA_SNOOZES_USED, 0)
         if (alarmId < 0) return
+        Graph.ringState.setActive(alarmId)
+
         val svc = Intent(context, AlarmService::class.java).apply {
             putExtra(AlarmContract.EXTRA_ALARM_ID, alarmId)
             putExtra(AlarmContract.EXTRA_SNOOZES_USED, snoozesUsed)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(svc)
         else context.startService(svc)
+
+        // Force the full-screen wake-up UI to the front even when the device is unlocked/in use.
+        // A setAlarmClock fire grants a background-activity-start window; the "display over other
+        // apps" permission is the backstop. The service's full-screen-intent notification also
+        // launches this when the screen is locked.
+        val ui = Intent(context, AlarmActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            putExtra(AlarmContract.EXTRA_ALARM_ID, alarmId)
+            putExtra(AlarmContract.EXTRA_SNOOZES_USED, snoozesUsed)
+        }
+        runCatching { context.startActivity(ui) }
     }
 
     private fun handleSnooze(context: Context, intent: Intent) {

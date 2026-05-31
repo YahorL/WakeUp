@@ -6,6 +6,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.wakeup.di.Graph
 import com.wakeup.domain.Alarm
@@ -26,6 +29,7 @@ class AlarmActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Graph.init(this)
+        enableEdgeToEdge()
         showWhenLockedAndTurnScreenOn()
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() { /* swallow: missions must be completed */ }
@@ -36,7 +40,14 @@ class AlarmActivity : ComponentActivity() {
         lifecycleScope.launch {
             val alarm = Graph.repository.getAlarm(alarmId) ?: Alarm(hour = 0, minute = 0)
             setContent {
-                WakeUpTheme {
+                val settings by Graph.settings.state.collectAsStateWithLifecycle()
+                val view = androidx.compose.ui.platform.LocalView.current
+                androidx.compose.runtime.SideEffect {
+                    val controller = androidx.core.view.WindowCompat.getInsetsController(window, view)
+                    controller.isAppearanceLightStatusBars = !settings.dark
+                    controller.isAppearanceLightNavigationBars = !settings.dark
+                }
+                WakeUpTheme(accent = settings.accent, dark = settings.dark, fontPairing = settings.fontPairing) {
                     MissionHost(
                         alarm = alarm,
                         snoozesUsed = snoozesUsed,
@@ -73,7 +84,7 @@ class AlarmActivity : ComponentActivity() {
         }
         resumeJob?.cancel()
         resumeJob = lifecycleScope.launch {
-            delay(4000)
+            delay(10_000)
             AlarmService.resumeSound(this@AlarmActivity)
             soundPaused = false
         }
@@ -82,14 +93,19 @@ class AlarmActivity : ComponentActivity() {
     private fun dismiss(alarm: Alarm) {
         completed = true
         resumeJob?.cancel()
-        AlarmService.stop(this)
+        AlarmService.stop(this) // silence immediately as the "Alarm off" screen appears
+        Graph.ringState.clear() // ring cycle is over — disabling in-app may cancel again normally
         lifecycleScope.launch {
-            if (RepeatDays.isOneShot(alarm.repeatDays)) {
+            // Re-read enabled state: the user may have disabled this alarm mid-cycle (which keeps
+            // the current snooze ringing but should NOT re-arm a future occurrence).
+            val current = Graph.repository.getAlarm(alarm.id)
+            if (current == null || RepeatDays.isOneShot(current.repeatDays) || !current.enabled) {
                 Graph.repository.setEnabled(alarm.id, false)
                 Graph.scheduler.cancel(alarm.id)
             } else {
-                Graph.scheduler.schedule(alarm)
+                Graph.scheduler.schedule(current)
             }
+            delay(2200) // let the "Alarm off" confirmation linger before closing
             finish()
         }
     }

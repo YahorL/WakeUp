@@ -18,8 +18,10 @@ class AlarmEditViewModel(
     private val scheduler: AlarmScheduler,
 ) : ViewModel() {
 
-    private val _draft = MutableStateFlow(Alarm.default(hour = 7, minute = 0))
+    private val _draft = MutableStateFlow(Alarm.default(hour = 6, minute = 30))
     val draft: StateFlow<Alarm> = _draft.asStateFlow()
+
+    val isNew: Boolean = alarmId == null
 
     init {
         if (alarmId != null) viewModelScope.launch {
@@ -65,10 +67,41 @@ class AlarmEditViewModel(
         _draft.value = _draft.value.copy(missions = list)
     }
 
+    // ── Design-model challenge helpers (at most one squat + one math, squats-first) ──
+
+    private fun currentSquat(): SquatParams? =
+        _draft.value.missions.map { it.params }.filterIsInstance<SquatParams>().firstOrNull()
+
+    private fun currentMath(): MathParams? =
+        _draft.value.missions.map { it.params }.filterIsInstance<MathParams>().firstOrNull()
+
+    /** Rebuild the mission list in the canonical wake-up order: squats first, then math. */
+    private fun apply(squat: SquatParams?, math: MathParams?) {
+        val list = buildList {
+            if (squat != null) add(MissionConfig(order = size, type = MissionType.SQUAT, params = squat))
+            if (math != null) add(MissionConfig(order = size, type = MissionType.MATH, params = math))
+        }
+        _draft.value = _draft.value.copy(missions = list)
+    }
+
+    fun setSquatsEnabled(enabled: Boolean) = apply(if (enabled) currentSquat() ?: SquatParams(15) else null, currentMath())
+    fun setSquatCount(count: Int) = apply(SquatParams(count.coerceIn(1, 50)), currentMath())
+    fun setMathEnabled(enabled: Boolean) = apply(currentSquat(), if (enabled) currentMath() ?: MathParams(Difficulty.MEDIUM, 3) else null)
+    fun setMathDifficulty(difficulty: Difficulty) = apply(currentSquat(), (currentMath() ?: MathParams(Difficulty.MEDIUM, 3)).copy(difficulty = difficulty))
+    fun setMathCount(count: Int) = apply(currentSquat(), (currentMath() ?: MathParams(Difficulty.MEDIUM, 3)).copy(problemCount = count.coerceIn(1, 10)))
+
     fun save(onSaved: (Long) -> Unit = {}) = viewModelScope.launch {
         val id = repository.upsert(_draft.value)
         scheduler.schedule(_draft.value.copy(id = id))
         onSaved(id)
+    }
+
+    fun delete(onDeleted: () -> Unit = {}) = viewModelScope.launch {
+        if (alarmId != null) {
+            scheduler.cancel(alarmId)
+            repository.delete(alarmId)
+        }
+        onDeleted()
     }
 
     private fun reindex(list: List<MissionConfig>): List<MissionConfig> =

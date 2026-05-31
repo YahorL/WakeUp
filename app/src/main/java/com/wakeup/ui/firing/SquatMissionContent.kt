@@ -1,16 +1,26 @@
 package com.wakeup.ui.firing
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wakeup.domain.SquatParams
 import com.wakeup.mission.AccelerometerSquatDetector
 import com.wakeup.mission.SquatDetector
+import com.wakeup.ui.components.WakeIcon
+import com.wakeup.ui.theme.Wake
 
 @Composable
 fun SquatMissionContent(
@@ -19,6 +29,8 @@ fun SquatMissionContent(
     onEngaged: () -> Unit = {},
     detectorOverride: SquatDetector? = null, // for previews/tests
 ) {
+    val colors = Wake.colors
+    val fonts = Wake.fonts
     val context = LocalContext.current
     val detector = remember(detectorOverride) { detectorOverride ?: AccelerometerSquatDetector(context) }
     // Remember the flow itself, not just the detector: calling repCounts() on every recomposition
@@ -31,20 +43,52 @@ fun SquatMissionContent(
         if (reps >= params.squatCount) onComplete()
     }
 
-    Column(
-        Modifier.fillMaxSize().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text("Do squats to wake up", style = MaterialTheme.typography.titleLarge)
-        Spacer(Modifier.height(24.dp))
-        Text("$reps / ${params.squatCount}", style = MaterialTheme.typography.displayLarge)
-        Spacer(Modifier.height(16.dp))
-        LinearProgressIndicator(
-            progress = { (reps.toFloat() / params.squatCount).coerceIn(0f, 1f) },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(16.dp))
-        Text("Hold the phone to your chest and squat.", style = MaterialTheme.typography.bodyMedium)
+    val total = params.squatCount
+    val remaining = (total - reps).coerceAtLeast(0)
+    val fillFraction by animateFloatAsState((reps.toFloat() / total).coerceIn(0f, 1f), label = "padFill")
+
+    Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+        PhaseHeader(kicker = "SQUATS", step = "$reps / $total")
+
+        Column(Modifier.weight(1f).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Text(
+                "$reps",
+                color = colors.text, fontFamily = fonts.num, fontWeight = fonts.numWeight,
+                fontSize = 132.sp, letterSpacing = (-4).sp, lineHeight = 112.sp,
+                style = TextStyle(fontFeatureSettings = "tnum"),
+            )
+            Spacer(Modifier.height(8.dp))
+            Text("of $total squats", color = colors.textDim, fontFamily = fonts.ui, fontSize = 15.sp)
+        }
+
+        // Segmented progress: one segment per required rep.
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            repeat(total) { i ->
+                Box(
+                    Modifier.weight(1f).height(5.dp).clip(RoundedCornerShape(3.dp))
+                        .background(if (i < reps) colors.accent else colors.hair),
+                )
+            }
+        }
+        Spacer(Modifier.height(20.dp))
+
+        // Status pad — fed by the accelerometer (no tapping). Fills as reps accrue.
+        Box(
+            Modifier.fillMaxWidth().height(92.dp).clip(RoundedCornerShape(20.dp))
+                .background(colors.card).border(1.5.dp, colors.hairStrong, RoundedCornerShape(20.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Box(Modifier.fillMaxWidth().fillMaxHeight(fillFraction).align(Alignment.BottomCenter).background(colors.accentSoft))
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    WakeIcon(WakeIcon.ArrowDown, size = 20.dp, color = colors.text, stroke = 2.2f)
+                    Text(
+                        if (remaining > 0) "Squat to count — $remaining to go" else "Nice — done!",
+                        color = colors.text, fontFamily = fonts.ui, fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
+                    )
+                }
+                Text("Motion sensor counts each rep", color = colors.textMute, fontFamily = fonts.ui, fontSize = 12.sp)
+            }
+        }
     }
 }
