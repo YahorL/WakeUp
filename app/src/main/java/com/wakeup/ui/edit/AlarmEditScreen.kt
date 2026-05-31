@@ -8,7 +8,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +37,7 @@ private val DAY_LETTERS = listOf("S", "M", "T", "W", "T", "F", "S")
 private fun modelBit(designDay: Int) = (designDay + 6) % 7
 private fun Difficulty.label() = name.lowercase().replaceFirstChar { it.uppercase() }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlarmEditScreen(
     alarmId: Long?,
@@ -41,21 +47,10 @@ fun AlarmEditScreen(
     val draft by viewModel.draft.collectAsStateWithLifecycle()
     val colors = Wake.colors
     val fonts = Wake.fonts
+    var showTimePicker by remember { mutableStateOf(false) }
 
     val squat = draft.squatParams()
     val math = draft.mathParams()
-    val pm = isPm(draft.hour)
-    val h12 = hour12(draft.hour)
-
-    fun stepHour(dir: Int) {
-        val next = ((h12 - 1 + dir + 12) % 12) + 1
-        viewModel.setTime(to24Hour(next, pm), draft.minute)
-    }
-    fun stepMinute(dir: Int) {
-        val base = (draft.minute / 5) * 5
-        val next = (base + dir * 5 + 60) % 60
-        viewModel.setTime(draft.hour, next)
-    }
 
     Screen {
         Column(Modifier.fillMaxSize().systemBarsPadding()) {
@@ -74,20 +69,15 @@ fun AlarmEditScreen(
                 Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())
                     .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 16.dp),
             ) {
-                // Time picker
-                Row(
-                    Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 18.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    TimeColumn(value = h12.toString(), onUp = { stepHour(1) }, onDown = { stepHour(-1) })
-                    Text(":", color = colors.textMute, fontFamily = fonts.num, fontSize = 56.sp, modifier = Modifier.padding(horizontal = 4.dp, vertical = 0.dp))
-                    TimeColumn(value = "%02d".format(draft.minute), onUp = { stepMinute(1) }, onDown = { stepMinute(-1) })
-                    Spacer(Modifier.width(10.dp))
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        PeriodPill("AM", selected = !pm) { viewModel.setTime(to24Hour(h12, false), draft.minute) }
-                        PeriodPill("PM", selected = pm) { viewModel.setTime(to24Hour(h12, true), draft.minute) }
-                    }
+                // Time — tap to set via the standard Android time picker.
+                Column(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        "%02d:%02d".format(draft.hour, draft.minute),
+                        color = colors.text, fontFamily = fonts.num, fontWeight = fonts.numWeight,
+                        fontSize = 64.sp, letterSpacing = (-2).sp, style = TextStyle(fontFeatureSettings = "tnum"),
+                        modifier = Modifier.noRippleClickable { showTimePicker = true }.padding(horizontal = 8.dp, vertical = 4.dp),
+                    )
+                    Text("Tap to change", color = colors.textMute, fontFamily = fonts.ui, fontSize = 12.5.sp)
                 }
 
                 // Label
@@ -214,40 +204,17 @@ fun AlarmEditScreen(
             }
         }
     }
-}
 
-@Composable
-private fun TimeColumn(value: String, onUp: () -> Unit, onDown: () -> Unit) {
-    val colors = Wake.colors
-    val fonts = Wake.fonts
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        ChevButton(WakeIcon.ChevronUp, onUp)
-        Text(
-            value, color = colors.text, fontFamily = fonts.num, fontWeight = fonts.numWeight,
-            fontSize = 64.sp, letterSpacing = (-2).sp, style = TextStyle(fontFeatureSettings = "tnum"),
+    if (showTimePicker) {
+        val state = rememberTimePickerState(initialHour = draft.hour, initialMinute = draft.minute, is24Hour = true)
+        AlertDialog(
+            onDismissRequest = { showTimePicker = false },
+            confirmButton = {
+                TextButton(onClick = { viewModel.setTime(state.hour, state.minute); showTimePicker = false }) { Text("OK") }
+            },
+            dismissButton = { TextButton(onClick = { showTimePicker = false }) { Text("Cancel") } },
+            text = { TimePicker(state = state) },
         )
-        ChevButton(WakeIcon.ChevronDown, onDown)
-    }
-}
-
-@Composable
-private fun ChevButton(icon: WakeIcon, onClick: () -> Unit) {
-    Box(Modifier.size(width = 38.dp, height = 30.dp).noRippleClickable(onClick = onClick), contentAlignment = Alignment.Center) {
-        WakeIcon(icon, size = 22.dp, color = Wake.colors.textDim, stroke = 2f)
-    }
-}
-
-@Composable
-private fun PeriodPill(label: String, selected: Boolean, onClick: () -> Unit) {
-    val colors = Wake.colors
-    Box(
-        Modifier.clip(RoundedCornerShape(11.dp))
-            .background(if (selected) colors.accent else colors.selectedFill)
-            .noRippleClickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(label, color = if (selected) colors.onAccent else colors.textDim, fontFamily = Wake.fonts.ui, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
     }
 }
 
