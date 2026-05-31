@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Alarm · Squats &amp; Math</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #e9e9e6; }
+  body { font-family: 'Hanken Grotesk', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  @keyframes aPulse { 0% { transform: scale(0.9); opacity: 0.5; } 100% { transform: scale(1.5); opacity: 0; } }
+  @keyframes aShake { 0%,100% { transform: translateX(0);} 20%{transform:translateX(-7px);} 40%{transform:translateX(6px);} 60%{transform:translateX(-4px);} 80%{transform:translateX(3px);} }
+  button { font-family: inherit; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="frames/android-frame.jsx"></script>
+<script type="text/babel" src="frames/design-canvas.jsx"></script>
+<script type="text/babel" src="frames/tweaks-panel.jsx"></script>
+<script type="text/babel" src="app/theme.jsx"></script>
+<script type="text/babel" src="app/screens-shared.jsx"></script>
+<script type="text/babel" src="app/dismiss-shared.jsx"></script>
+<script type="text/babel" src="app/dismiss-a.jsx"></script>
+<script type="text/babel" src="app/dismiss-b.jsx"></script>
+<script type="text/babel" src="app/dismiss-c.jsx"></script>
+
+<script type="text/babel">
+const ACCENT_VALUES = ACCENT_OPTIONS.map(o => o.value);
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "accent": "oklch(0.70 0.22 250)",
+  "fontPairing": "Grotesk",
+  "dark": true
+}/*EDITMODE-END*/;
+
+const DEMO_CFG = { squats: 10, math: 2, level: 'Medium', h: 6, m: 30, period: 'AM', label: 'Weekday wake-up' };
+
+// device wrapper so status bar + nav inherit the chosen font + theme colors,
+// with the background pattern layered behind the screen content
+function Phone({ theme, time, accent, pattern = true, children }) {
+  return (
+    <div style={{ fontFamily: theme.fonts.ui }}>
+      <AndroidDevice width={400} height={840} dark={theme.dark} bg={theme.bg} navColor={theme.bg} time={time}>
+        <div style={{ position: 'relative', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          {pattern && <PatternBg theme={theme} accent={accent} />}
+          <div style={{ position: 'relative', zIndex: 1, flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            {children}
+          </div>
+        </div>
+      </AndroidDevice>
+    </div>
+  );
+}
+
+function Brief({ theme, accent }) {
+  const Item = ({ k, children }) => (
+    <div style={{ display: 'flex', gap: 14, padding: '11px 0', borderTop: `1px solid ${theme.hair}` }}>
+      <div style={{ width: 86, flexShrink: 0, fontSize: 12, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 700, color: theme.textMute, paddingTop: 2 }}>{k}</div>
+      <div style={{ fontSize: 14.5, color: theme.textDim, lineHeight: 1.55 }}>{children}</div>
+    </div>
+  );
+  return (
+    <div style={{ width: 560, background: theme.card, border: `1px solid ${theme.hair}`, borderRadius: 24, padding: '30px 34px', fontFamily: theme.fonts.ui, color: theme.text }}>
+      <div style={{ fontSize: 12, letterSpacing: 2, fontWeight: 700, color: accent }}>HI-FI EXPLORATION</div>
+      <div style={{ fontFamily: theme.fonts.display, fontSize: 34, fontWeight: 500, letterSpacing: -0.5, marginTop: 8, lineHeight: 1.05 }}>An alarm you have to earn</div>
+      <div style={{ fontSize: 15, color: theme.textDim, marginTop: 12, lineHeight: 1.6 }}>
+        Calm, monochrome, by-the-book Android app. The shared screens (home &amp; setup) are fixed; the
+        <b style={{ color: theme.text }}> dismissal flow</b> — the moment it's 6:30am and you must squat and solve to
+        silence it — is explored in <b style={{ color: theme.text }}>3 directions</b>. Everything is live: toggle alarms,
+        edit the challenge, press through the squats, solve the math.
+      </div>
+      <div style={{ marginTop: 18 }}>
+        <Item k="Mechanic">Squats are counted by the phone's motion sensor — here, <b style={{ color: theme.text }}>tap / press the pad</b> to simulate one rep. Math problems use an on-screen keypad. Both are configurable per alarm and combine.</Item>
+        <Item k="Direction">Going with <b style={{ color: theme.text }}>A · Minimal counter</b> — calm, sequential, big tabular numerals. The wake-up flow is broken out screen-by-screen: alarm → squats → math → done.</Item>
+        <Item k="Settings">A new in-app <b style={{ color: theme.text }}>Settings</b> screen (gear, top-right of Home) sets the accent color — including <b style={{ color: accent }}>Neon blue</b> — plus dark mode &amp; typeface. It drives the whole app live.</Item>
+        <Item k="Tweaks">The toolbar <b style={{ color: theme.text }}>Tweaks</b> panel mirrors the same controls. A soft dot-grid pattern with gradient opacity sits behind every screen.</Item>
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const theme = makeTheme(t);
+  const accent = t.accent;
+
+  const shellProps = {
+    theme, accent,
+    onSetAccent: (v) => setTweak('accent', v),
+    dark: t.dark, onSetDark: (v) => setTweak('dark', v),
+    fontPairing: t.fontPairing, onSetFont: (v) => setTweak('fontPairing', v),
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', background: theme.dark ? '#0a0b0c' : '#e9e9e6', transition: 'background .3s' }}>
+      <DesignCanvas>
+        <DCSection id="brief" title="Read me" subtitle="Assumptions, system &amp; how to drive it">
+          <DCArtboard id="brief" label="Brief" width={560} height={360}>
+            <Brief theme={theme} accent={accent} />
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="app" title="The app" subtitle="Home · settings · alarm setup">
+          <DCArtboard id="home" label="Home · alarm list" width={400} height={840}>
+            <Phone theme={theme} accent={accent} time="11:18"><AppShell {...shellProps} initialScreen="home" /></Phone>
+          </DCArtboard>
+          <DCArtboard id="settings" label="Settings · accent color" width={400} height={840}>
+            <Phone theme={theme} accent={accent} time="11:18"><AppShell {...shellProps} initialScreen="settings" /></Phone>
+          </DCArtboard>
+          <DCArtboard id="edit" label="Set / edit alarm" width={400} height={840}>
+            <Phone theme={theme} accent={accent} time="11:18"><AppShell {...shellProps} initialScreen="edit" initialEditId={1} /></Phone>
+          </DCArtboard>
+        </DCSection>
+
+        <DCSection id="flow" title="Direction A — the wake-up flow" subtitle="Minimal counter · every screen is live (tap the pad, solve the math)">
+          <DCArtboard id="ring" label="1 · Alarm ringing" width={400} height={840}>
+            <Phone theme={theme} accent={accent} time="6:30"><DismissA theme={theme} accent={accent} config={DEMO_CFG} initialPhase="ring" /></Phone>
+          </DCArtboard>
+          <DCArtboard id="squat" label="2 · Squats" width={400} height={840}>
+            <Phone theme={theme} accent={accent} time="6:30"><DismissA theme={theme} accent={accent} config={DEMO_CFG} initialPhase="squats" /></Phone>
+          </DCArtboard>
+          <DCArtboard id="math" label="3 · Math" width={400} height={840}>
+            <Phone theme={theme} accent={accent} time="6:30"><DismissA theme={theme} accent={accent} config={DEMO_CFG} initialPhase="math" /></Phone>
+          </DCArtboard>
+          <DCArtboard id="done" label="4 · Alarm off" width={400} height={840}>
+            <Phone theme={theme} accent={accent} time="6:31"><DismissA theme={theme} accent={accent} config={DEMO_CFG} initialPhase="done" /></Phone>
+          </DCArtboard>
+        </DCSection>
+      </DesignCanvas>
+
+      <TweaksPanel>
+        <TweakSection label="Color" />
+        <TweakColor label="Accent" value={t.accent} options={ACCENT_VALUES} onChange={(v) => setTweak('accent', v)} />
+        <TweakToggle label="Dark mode" value={t.dark} onChange={(v) => setTweak('dark', v)} />
+        <TweakSection label="Type" />
+        <TweakRadio label="Font pairing" value={t.fontPairing} options={['Grotesk', 'Serif', 'Mono']} onChange={(v) => setTweak('fontPairing', v)} />
+      </TweaksPanel>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
