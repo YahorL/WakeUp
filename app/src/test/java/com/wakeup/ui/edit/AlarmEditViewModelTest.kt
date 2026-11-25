@@ -21,22 +21,18 @@ class AlarmEditViewModelTest {
         val vm = AlarmEditViewModel(FakeAlarmRepository(), alarmId = null, scheduler = NoopScheduler())
         advanceUntilIdle()
         val d = vm.draft.value
-        assertEquals(2, d.missions.size)
-        assertEquals(MissionType.SQUAT, d.missions[0].type)
+        assertEquals(listOf(SquatParams.DEFAULT, MathParams.DEFAULT), d.missions)
     }
 
     @Test fun squatAndMathHelpersMaintainSquatFirstOrder() = runTest {
         val vm = AlarmEditViewModel(FakeAlarmRepository(), alarmId = null, scheduler = NoopScheduler())
         advanceUntilIdle()
         vm.setSquatsEnabled(false)
-        assertEquals(1, vm.draft.value.missions.size)
-        assertEquals(MissionType.MATH, vm.draft.value.missions[0].type)
+        assertEquals(listOf(MathParams.DEFAULT), vm.draft.value.missions)
         vm.setSquatsEnabled(true)
-        assertEquals(MissionType.SQUAT, vm.draft.value.missions[0].type)
-        assertEquals(MissionType.MATH, vm.draft.value.missions[1].type)
+        assertEquals(listOf(SquatParams.DEFAULT, MathParams.DEFAULT), vm.draft.value.missions)
         vm.setMathEnabled(false)
-        assertEquals(1, vm.draft.value.missions.size)
-        assertEquals(MissionType.SQUAT, vm.draft.value.missions[0].type)
+        assertEquals(listOf(SquatParams.DEFAULT), vm.draft.value.missions)
     }
 
     @Test fun editingFieldsUpdatesDraft() = runTest {
@@ -51,14 +47,13 @@ class AlarmEditViewModelTest {
         assertTrue(RepeatDays.isSet(d.repeatDays, 6))
     }
 
-    @Test fun addRemoveAndReorderMissions() = runTest {
+    @Test fun challengeSettingsAreClampedAndKeepTheOtherMission() = runTest {
         val vm = AlarmEditViewModel(FakeAlarmRepository(), alarmId = null, scheduler = NoopScheduler())
         advanceUntilIdle()
-        vm.removeMission(0)
-        assertEquals(1, vm.draft.value.missions.size)
-        vm.addMission(MissionType.MATH)
-        assertEquals(2, vm.draft.value.missions.size)
-        assertEquals(listOf(0, 1), vm.draft.value.missions.map { it.order })
+        vm.setSquatCount(99)
+        vm.setMathCount(0)
+        vm.setMathDifficulty(Difficulty.HARD)
+        assertEquals(listOf(SquatParams(50), MathParams(Difficulty.HARD, 1)), vm.draft.value.missions)
     }
 
     @Test fun saveWritesToRepository() = runTest {

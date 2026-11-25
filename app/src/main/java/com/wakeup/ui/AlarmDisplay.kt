@@ -1,33 +1,19 @@
 package com.wakeup.ui
 
 import com.wakeup.domain.Alarm
-import com.wakeup.domain.MathParams
-import com.wakeup.domain.SquatParams
+import com.wakeup.domain.Difficulty
 
-// ── 12-hour clock helpers (the model stores 24-hour internally) ──────────────
+// ── Clock (the model stores 24-hour time; alarms are shown on a 12-hour clock) ──
 
 fun hour12(hour24: Int): Int {
     val h = hour24 % 12
     return if (h == 0) 12 else h
 }
 
-fun isPm(hour24: Int): Boolean = hour24 >= 12
+fun periodLabel(hour24: Int): String = if (hour24 >= 12) "PM" else "AM"
 
-/** Build a 24-hour value from a 12-hour display value (1..12) + AM/PM. */
-fun to24Hour(hour12: Int, pm: Boolean): Int {
-    val base = hour12 % 12 // 12 -> 0
-    return if (pm) base + 12 else base
-}
-
-fun periodLabel(hour24: Int): String = if (isPm(hour24)) "PM" else "AM"
-
-// ── Mission extraction (the design models at most one squat + one math) ──────
-
-fun Alarm.squatParams(): SquatParams? = missions.map { it.params }.filterIsInstance<SquatParams>().firstOrNull()
-fun Alarm.mathParams(): MathParams? = missions.map { it.params }.filterIsInstance<MathParams>().firstOrNull()
-val Alarm.squatCount: Int get() = squatParams()?.squatCount ?: 0
-
-// ── Countdown ────────────────────────────────────────────────────────────────
+/** e.g. "6:30" — pair with [periodLabel]. */
+fun Alarm.time12(): String = "${hour12(hour)}:%02d".format(minute)
 
 /** Formats a positive duration as e.g. "7h 04m" or "12m". */
 fun formatCountdown(millis: Long): String {
@@ -35,4 +21,22 @@ fun formatCountdown(millis: Long): String {
     val hours = totalMinutes / 60
     val minutes = totalMinutes % 60
     return if (hours > 0) "${hours}h %02dm".format(minutes) else "${minutes}m"
+}
+
+// ── Repeat days ──────────────────────────────────────────────────────────────
+
+/** Day chips in the design's Sunday-first order, each paired with its Monday-first RepeatDays bit. */
+val DAY_CHIPS: List<Pair<String, Int>> =
+    listOf("S" to 6, "M" to 0, "T" to 1, "W" to 2, "T" to 3, "F" to 4, "S" to 5)
+
+// ── Missions ─────────────────────────────────────────────────────────────────
+
+val Difficulty.label: String get() = name.lowercase().replaceFirstChar { it.uppercase() }
+
+/** What the alarm asks for, e.g. ["15 squats", "3 problems"]; empty if it has no missions. */
+fun Alarm.missionSummary(): List<String> = buildList {
+    val squats = squat?.squatCount ?: 0
+    val problems = math?.problemCount ?: 0
+    if (squats > 0) add("$squats squats")
+    if (problems > 0) add("$problems problems")
 }

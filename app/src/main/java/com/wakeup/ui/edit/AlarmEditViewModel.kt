@@ -5,11 +5,16 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.wakeup.data.AlarmRepository
 import com.wakeup.di.Graph
-import com.wakeup.domain.*
+import com.wakeup.domain.Alarm
+import com.wakeup.domain.Difficulty
+import com.wakeup.domain.MathParams
+import com.wakeup.domain.RepeatDays
+import com.wakeup.domain.SquatParams
 import com.wakeup.schedule.AlarmScheduler
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class AlarmEditViewModel(
@@ -29,66 +34,33 @@ class AlarmEditViewModel(
         }
     }
 
-    fun setTime(hour: Int, minute: Int) { _draft.value = _draft.value.copy(hour = hour, minute = minute) }
-    fun setLabel(label: String) { _draft.value = _draft.value.copy(label = label) }
-    fun toggleRepeatDay(dayIndex: Int) {
-        _draft.value = _draft.value.copy(repeatDays = RepeatDays.toggle(_draft.value.repeatDays, dayIndex))
-    }
-    fun setSound(uri: String?) { _draft.value = _draft.value.copy(soundUri = uri) }
-    fun setVibrate(v: Boolean) { _draft.value = _draft.value.copy(vibrate = v) }
-    fun setGradualVolume(v: Boolean) { _draft.value = _draft.value.copy(gradualVolume = v) }
-    fun setSnoozeEnabled(v: Boolean) { _draft.value = _draft.value.copy(snoozeEnabled = v) }
-    fun setSnoozeMinutes(m: Int) { _draft.value = _draft.value.copy(snoozeMinutes = m) }
-    fun setMaxSnoozes(n: Int) { _draft.value = _draft.value.copy(maxSnoozes = n) }
+    fun setTime(hour: Int, minute: Int) = _draft.update { it.copy(hour = hour, minute = minute) }
 
-    fun addMission(type: MissionType) {
-        val params: MissionParams = when (type) {
-            MissionType.MATH -> MathParams(Difficulty.MEDIUM, 3)
-            MissionType.SQUAT -> SquatParams(10)
-        }
-        val next = _draft.value.missions + MissionConfig(order = _draft.value.missions.size, type = type, params = params)
-        _draft.value = _draft.value.copy(missions = reindex(next))
-    }
+    fun setLabel(label: String) = _draft.update { it.copy(label = label) }
 
-    fun removeMission(index: Int) {
-        _draft.value = _draft.value.copy(missions = reindex(_draft.value.missions.filterIndexed { i, _ -> i != index }))
-    }
+    fun toggleRepeatDay(dayIndex: Int) =
+        _draft.update { it.copy(repeatDays = RepeatDays.toggle(it.repeatDays, dayIndex)) }
 
-    fun moveMission(from: Int, to: Int) {
-        val list = _draft.value.missions.toMutableList()
-        if (from !in list.indices || to !in list.indices) return
-        list.add(to, list.removeAt(from))
-        _draft.value = _draft.value.copy(missions = reindex(list))
-    }
+    fun setSquatsEnabled(enabled: Boolean) =
+        setMissions(squat = if (enabled) squat ?: SquatParams.DEFAULT else null)
 
-    fun updateMissionParams(index: Int, params: MissionParams) {
-        val list = _draft.value.missions.toMutableList()
-        list[index] = list[index].copy(params = params)
-        _draft.value = _draft.value.copy(missions = list)
-    }
+    fun setSquatCount(count: Int) = setMissions(squat = SquatParams(count.coerceIn(1, 50)))
 
-    // ── Design-model challenge helpers (at most one squat + one math, squats-first) ──
+    fun setMathEnabled(enabled: Boolean) =
+        setMissions(math = if (enabled) math ?: MathParams.DEFAULT else null)
 
-    private fun currentSquat(): SquatParams? =
-        _draft.value.missions.map { it.params }.filterIsInstance<SquatParams>().firstOrNull()
+    fun setMathDifficulty(difficulty: Difficulty) =
+        setMissions(math = (math ?: MathParams.DEFAULT).copy(difficulty = difficulty))
 
-    private fun currentMath(): MathParams? =
-        _draft.value.missions.map { it.params }.filterIsInstance<MathParams>().firstOrNull()
+    fun setMathCount(count: Int) =
+        setMissions(math = (math ?: MathParams.DEFAULT).copy(problemCount = count.coerceIn(1, 10)))
 
-    /** Rebuild the mission list in the canonical wake-up order: squats first, then math. */
-    private fun apply(squat: SquatParams?, math: MathParams?) {
-        val list = buildList {
-            if (squat != null) add(MissionConfig(order = size, type = MissionType.SQUAT, params = squat))
-            if (math != null) add(MissionConfig(order = size, type = MissionType.MATH, params = math))
-        }
-        _draft.value = _draft.value.copy(missions = list)
-    }
+    private val squat: SquatParams? get() = _draft.value.squat
+    private val math: MathParams? get() = _draft.value.math
 
-    fun setSquatsEnabled(enabled: Boolean) = apply(if (enabled) currentSquat() ?: SquatParams(15) else null, currentMath())
-    fun setSquatCount(count: Int) = apply(SquatParams(count.coerceIn(1, 50)), currentMath())
-    fun setMathEnabled(enabled: Boolean) = apply(currentSquat(), if (enabled) currentMath() ?: MathParams(Difficulty.MEDIUM, 3) else null)
-    fun setMathDifficulty(difficulty: Difficulty) = apply(currentSquat(), (currentMath() ?: MathParams(Difficulty.MEDIUM, 3)).copy(difficulty = difficulty))
-    fun setMathCount(count: Int) = apply(currentSquat(), (currentMath() ?: MathParams(Difficulty.MEDIUM, 3)).copy(problemCount = count.coerceIn(1, 10)))
+    /** The wake-up flow always runs squats first, then math. */
+    private fun setMissions(squat: SquatParams? = this.squat, math: MathParams? = this.math) =
+        _draft.update { it.copy(missions = listOfNotNull(squat, math)) }
 
     fun save(onSaved: (Long) -> Unit = {}) = viewModelScope.launch {
         val id = repository.upsert(_draft.value)
@@ -103,9 +75,6 @@ class AlarmEditViewModel(
         }
         onDeleted()
     }
-
-    private fun reindex(list: List<MissionConfig>): List<MissionConfig> =
-        list.mapIndexed { i, m -> m.copy(order = i) }
 
     companion object {
         fun factory(alarmId: Long?): ViewModelProvider.Factory = object : ViewModelProvider.Factory {

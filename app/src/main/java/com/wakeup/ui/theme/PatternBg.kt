@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.dp
  * The two-layer backdrop every screen sits on: a soft accent glow bleeding down from the top edge,
  * and a dot grid that is densest at the top and fades to nothing by ~70% down.
  */
-fun Modifier.patternBackground(colors: WakeColors): Modifier = drawBehind {
+private fun Modifier.patternBackground(colors: WakeColors): Modifier = drawBehind {
     // 1. Accent glow pooling from the top.
     val glowRadius = maxOf(size.width, size.height) * 0.95f
     drawRect(

@@ -49,8 +49,8 @@ class AlarmService : Service() {
             }
         }
 
-        val alarmId = intent?.getLongExtra(AlarmContract.EXTRA_ALARM_ID, -1L) ?: -1L
-        val snoozesUsed = intent?.getIntExtra(AlarmContract.EXTRA_SNOOZES_USED, 0) ?: 0
+        val alarmId = intent?.alarmId ?: -1L
+        val snoozesUsed = intent?.snoozesUsed ?: 0
         if (alarmId < 0) { stopSelf(); return START_NOT_STICKY }
 
         acquireWakeLock()
@@ -129,13 +129,8 @@ class AlarmService : Service() {
                     .apply { setBypassDnd(true); setSound(null, null) }
             )
         }
-        val fullScreen = Intent(this, AlarmActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            putExtra(AlarmContract.EXTRA_ALARM_ID, alarmId)
-            putExtra(AlarmContract.EXTRA_SNOOZES_USED, snoozesUsed)
-        }
         val fsPending = PendingIntent.getActivity(
-            this, alarmId.toInt(), fullScreen,
+            this, alarmId.toInt(), AlarmActivity.launchIntent(this, alarmId, snoozesUsed),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         return NotificationCompat.Builder(this, AlarmContract.NOTIFICATION_CHANNEL_ID)
@@ -162,10 +157,11 @@ class AlarmService : Service() {
     companion object {
         fun stop(context: Context) = context.stopService(Intent(context, AlarmService::class.java))
 
-        fun pauseSound(context: Context) =
-            context.startService(Intent(context, AlarmService::class.java).setAction(AlarmContract.ACTION_PAUSE_SOUND))
+        fun pauseSound(context: Context) = send(context, AlarmContract.ACTION_PAUSE_SOUND)
 
-        fun resumeSound(context: Context) =
-            context.startService(Intent(context, AlarmService::class.java).setAction(AlarmContract.ACTION_RESUME_SOUND))
+        fun resumeSound(context: Context) = send(context, AlarmContract.ACTION_RESUME_SOUND)
+
+        private fun send(context: Context, action: String) =
+            context.startService(Intent(context, AlarmService::class.java).setAction(action))
     }
 }

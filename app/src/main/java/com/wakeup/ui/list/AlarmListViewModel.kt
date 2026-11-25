@@ -33,11 +33,6 @@ class AlarmListViewModel(
         // wake-up challenge by toggling it off; it'll ring again after the snooze interval.
     }
 
-    fun delete(id: Long) = viewModelScope.launch {
-        scheduler.cancel(id)
-        repository.delete(id)
-    }
-
     companion object {
         val Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")

@@ -1,9 +1,10 @@
 package com.wakeup.data
 
 import com.wakeup.domain.Alarm
-import com.wakeup.domain.MissionConfig
+import com.wakeup.domain.MathParams
+import com.wakeup.domain.MissionParams
 import com.wakeup.domain.MissionParamsCodec
-import com.wakeup.domain.MissionType
+import com.wakeup.domain.SquatParams
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -19,7 +20,7 @@ class RoomAlarmRepository(private val dao: AlarmDao) : AlarmRepository {
     override suspend fun upsert(alarm: Alarm): Long {
         val id = dao.insertAlarm(alarm.toEntity()) // REPLACE handles updates by id
         dao.deleteMissionsFor(id)
-        dao.insertMissions(alarm.missions.map { it.toEntity(id) })
+        dao.insertMissions(alarm.missions.mapIndexed { order, params -> params.toEntity(id, order) })
         return id
     }
 
@@ -33,9 +34,7 @@ private fun AlarmWithMissions.toDomain(): Alarm = Alarm(
     enabled = alarm.enabled, repeatDays = alarm.repeatDays, soundUri = alarm.soundUri,
     vibrate = alarm.vibrate, gradualVolume = alarm.gradualVolume, rampSeconds = alarm.rampSeconds,
     snoozeEnabled = alarm.snoozeEnabled, snoozeMinutes = alarm.snoozeMinutes, maxSnoozes = alarm.maxSnoozes,
-    missions = missions.sortedBy { it.order }.map {
-        MissionConfig(it.id, it.order, MissionType.valueOf(it.type), MissionParamsCodec.decode(it.params))
-    },
+    missions = missions.sortedBy { it.order }.map { MissionParamsCodec.decode(it.params) },
 )
 
 private fun Alarm.toEntity(): AlarmEntity = AlarmEntity(
@@ -44,6 +43,12 @@ private fun Alarm.toEntity(): AlarmEntity = AlarmEntity(
     snoozeEnabled = snoozeEnabled, snoozeMinutes = snoozeMinutes, maxSnoozes = maxSnoozes,
 )
 
-private fun MissionConfig.toEntity(alarmId: Long): MissionConfigEntity = MissionConfigEntity(
-    id = 0, alarmId = alarmId, order = order, type = type.name, params = MissionParamsCodec.encode(params),
+private fun MissionParams.toEntity(alarmId: Long, order: Int): MissionConfigEntity = MissionConfigEntity(
+    alarmId = alarmId,
+    order = order,
+    type = when (this) {
+        is MathParams -> "MATH"
+        is SquatParams -> "SQUAT"
+    },
+    params = MissionParamsCodec.encode(this),
 )

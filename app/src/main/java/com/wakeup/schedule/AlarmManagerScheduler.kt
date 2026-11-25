@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import com.wakeup.alarm.AlarmContract
 import com.wakeup.alarm.AlarmReceiver
+import com.wakeup.alarm.putAlarmExtras
 import com.wakeup.domain.Alarm
 import java.time.ZonedDateTime
 
@@ -26,16 +27,13 @@ class AlarmManagerScheduler(private val context: Context) : AlarmScheduler {
     }
 
     private fun setExact(alarmId: Long, triggerAt: Long, snoozesUsed: Int) {
-        val show = AlarmManager.AlarmClockInfo(triggerAt, null)
-        am.setAlarmClock(show, firePendingIntent(alarmId, snoozesUsed))
+        am.setAlarmClock(AlarmManager.AlarmClockInfo(triggerAt, null), firePendingIntent(alarmId, snoozesUsed))
     }
 
     private fun firePendingIntent(alarmId: Long, snoozesUsed: Int): PendingIntent {
-        val intent = Intent(context, AlarmReceiver::class.java).apply {
-            action = AlarmContract.ACTION_FIRE
-            putExtra(AlarmContract.EXTRA_ALARM_ID, alarmId)
-            putExtra(AlarmContract.EXTRA_SNOOZES_USED, snoozesUsed)
-        }
+        val intent = Intent(context, AlarmReceiver::class.java)
+            .setAction(AlarmContract.ACTION_FIRE)
+            .putAlarmExtras(alarmId, snoozesUsed)
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         return PendingIntent.getBroadcast(context, alarmId.toInt(), intent, flags)
     }

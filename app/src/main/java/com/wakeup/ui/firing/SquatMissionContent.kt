@@ -11,31 +11,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wakeup.domain.SquatParams
 import com.wakeup.mission.AccelerometerSquatDetector
-import com.wakeup.mission.SquatDetector
+import com.wakeup.ui.components.NumText
 import com.wakeup.ui.components.WakeIcon
 import com.wakeup.ui.theme.Wake
 
 @Composable
-fun SquatMissionContent(
-    params: SquatParams,
-    onComplete: () -> Unit,
-    onEngaged: () -> Unit = {},
-    detectorOverride: SquatDetector? = null, // for previews/tests
-) {
+fun SquatMissionContent(params: SquatParams, onComplete: () -> Unit, onEngaged: () -> Unit) {
     val colors = Wake.colors
     val fonts = Wake.fonts
     val context = LocalContext.current
-    val detector = remember(detectorOverride) { detectorOverride ?: AccelerometerSquatDetector(context) }
-    // Remember the flow itself, not just the detector: calling repCounts() on every recomposition
-    // would restart the sensor flow and reset the rep count to 0 each time.
-    val repFlow = remember(detector) { detector.repCounts() }
+    // Remember the flow itself: calling repCounts() on every recomposition would restart the
+    // sensor flow and reset the rep count to 0 each time.
+    val repFlow = remember { AccelerometerSquatDetector(context).repCounts() }
     val reps by repFlow.collectAsStateWithLifecycle(initialValue = 0)
 
     LaunchedEffect(reps) {
@@ -51,12 +44,7 @@ fun SquatMissionContent(
         PhaseHeader(kicker = "SQUATS", step = "$reps / $total")
 
         Column(Modifier.weight(1f).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Text(
-                "$reps",
-                color = colors.text, fontFamily = fonts.num, fontWeight = fonts.numWeight,
-                fontSize = 132.sp, letterSpacing = (-4).sp, lineHeight = 112.sp,
-                style = TextStyle(fontFeatureSettings = "tnum"),
-            )
+            NumText("$reps", fontSize = 132.sp, letterSpacing = (-4).sp, lineHeight = 112.sp)
             Spacer(Modifier.height(8.dp))
             Text("of $total squats", color = colors.textDim, fontFamily = fonts.ui, fontSize = 15.sp)
         }

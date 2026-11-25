@@ -9,7 +9,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,6 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wakeup.domain.Alarm
@@ -25,6 +25,8 @@ import com.wakeup.domain.MathParams
 import com.wakeup.domain.SquatParams
 import com.wakeup.schedule.SnoozePolicy
 import com.wakeup.ui.*
+import com.wakeup.ui.components.AccentButton
+import com.wakeup.ui.components.NumText
 import com.wakeup.ui.components.WakeIcon
 import com.wakeup.ui.components.noRippleClickable
 import com.wakeup.ui.theme.Screen
@@ -42,7 +44,7 @@ fun MissionHost(
     snoozesUsed: Int,
     onAllComplete: () -> Unit,
     onSnooze: () -> Unit,
-    onEngaged: () -> Unit = {},
+    onEngaged: () -> Unit,
 ) {
     var phase by remember { mutableStateOf<Phase>(Phase.Ring) }
     val canSnooze = SnoozePolicy.canSnooze(alarm.snoozeEnabled, alarm.maxSnoozes, snoozesUsed)
@@ -64,7 +66,7 @@ fun MissionHost(
                     val advance: () -> Unit = {
                         phase = if (p.index + 1 >= alarm.missions.size) Phase.Done else Phase.Mission(p.index + 1)
                     }
-                    when (val params = alarm.missions[p.index].params) {
+                    when (val params = alarm.missions[p.index]) {
                         is MathParams -> MathMissionContent(params = params, onComplete = advance, onEngaged = onEngaged)
                         is SquatParams -> SquatMissionContent(params = params, onComplete = advance, onEngaged = onEngaged)
                     }
@@ -81,7 +83,7 @@ fun PhaseHeader(kicker: String, step: String) {
     val colors = Wake.colors
     val fonts = Wake.fonts
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 0.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -94,15 +96,8 @@ fun PhaseHeader(kicker: String, step: String) {
 private fun RingContent(alarm: Alarm, canSnooze: Boolean, onBegin: () -> Unit, onSnooze: () -> Unit) {
     val colors = Wake.colors
     val fonts = Wake.fonts
-    val squats = alarm.squatCount
-    val math = alarm.mathParams()?.problemCount ?: 0
-    val beginLabel = remember(squats, math) {
-        val parts = buildList {
-            if (squats > 0) add("$squats squats")
-            if (math > 0) add("$math problems")
-        }
-        if (parts.isEmpty()) "Dismiss" else "Begin · " + parts.joinToString(" + ")
-    }
+    val missions = alarm.missionSummary()
+    val beginLabel = if (missions.isEmpty()) "Dismiss" else "Begin · " + missions.joinToString(" + ")
 
     val pulse = rememberInfiniteTransition(label = "pulse")
     val pulseScale by pulse.animateFloat(
@@ -131,11 +126,7 @@ private fun RingContent(alarm: Alarm, canSnooze: Boolean, onBegin: () -> Unit, o
         Text("ALARM", color = colors.accent, fontFamily = fonts.ui, fontWeight = FontWeight.Bold, fontSize = 13.sp, letterSpacing = 2.sp)
         Spacer(Modifier.height(10.dp))
         Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(
-                "${hour12(alarm.hour)}:%02d".format(alarm.minute),
-                color = colors.text, fontFamily = fonts.num, fontWeight = fonts.numWeight,
-                fontSize = 74.sp, letterSpacing = (-2).sp, style = TextStyle(fontFeatureSettings = "tnum"),
-            )
+            NumText(alarm.time12(), fontSize = 74.sp, letterSpacing = (-2).sp)
             Text(periodLabel(alarm.hour), color = colors.textDim, fontFamily = fonts.ui, fontWeight = FontWeight.SemiBold, fontSize = 22.sp, modifier = Modifier.padding(bottom = 10.dp))
         }
         if (alarm.label.isNotBlank()) {
@@ -145,13 +136,7 @@ private fun RingContent(alarm: Alarm, canSnooze: Boolean, onBegin: () -> Unit, o
 
         Spacer(Modifier.weight(1f))
 
-        Box(
-            Modifier.fillMaxWidth().height(58.dp).clip(RoundedCornerShape(18.dp)).background(colors.accent)
-                .noRippleClickable(onClick = onBegin),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(beginLabel, color = colors.onAccent, fontFamily = fonts.ui, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-        }
+        AccentButton(beginLabel, onClick = onBegin, height = 58.dp, radius = 18.dp, fontWeight = FontWeight.Bold)
         if (canSnooze) {
             Spacer(Modifier.height(14.dp))
             Text(
@@ -167,8 +152,10 @@ private fun RingContent(alarm: Alarm, canSnooze: Boolean, onBegin: () -> Unit, o
 private fun DoneContent(alarm: Alarm) {
     val colors = Wake.colors
     val fonts = Wake.fonts
-    val squats = alarm.squatCount
-    val math = alarm.mathParams()?.problemCount ?: 0
+    val missions = alarm.missionSummary()
+    val message =
+        if (missions.isEmpty()) "Good morning. Alarm off."
+        else "Nicely done — ${missions.joinToString(" and ")} before ${alarm.time12()}. Good morning."
 
     Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(Modifier.weight(1f))
@@ -179,23 +166,11 @@ private fun DoneContent(alarm: Alarm) {
         Text("Alarm off", color = colors.text, fontFamily = fonts.display, fontWeight = FontWeight.Medium, fontSize = 32.sp, letterSpacing = (-0.5).sp)
         Spacer(Modifier.height(10.dp))
         Text(
-            doneMessage(squats, math, hour12(alarm.hour), alarm.minute),
+            message,
             color = colors.textDim, fontFamily = fonts.ui, fontSize = 16.sp, lineHeight = 24.sp,
             modifier = Modifier.widthIn(max = 260.dp),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            textAlign = TextAlign.Center,
         )
         Spacer(Modifier.weight(1f))
-    }
-}
-
-private fun doneMessage(squats: Int, math: Int, hour12: Int, minute: Int): String {
-    val parts = buildList {
-        if (squats > 0) add("$squats squats")
-        if (math > 0) add("$math problems")
-    }
-    return if (parts.isEmpty()) {
-        "Good morning. Alarm off."
-    } else {
-        "Nicely done — ${parts.joinToString(" and ")} before $hour12:%02d. Good morning.".format(minute)
     }
 }

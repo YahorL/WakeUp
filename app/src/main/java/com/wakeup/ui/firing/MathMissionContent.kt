@@ -2,7 +2,6 @@ package com.wakeup.ui.firing
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.keyframes
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,13 +10,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wakeup.domain.MathParams
 import com.wakeup.mission.MathProblemGenerator
 import com.wakeup.ui.components.NumPad
+import com.wakeup.ui.components.NumText
+import com.wakeup.ui.label
 import com.wakeup.ui.theme.Wake
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
 private fun prettyProblem(text: String): String = text.replace(" * ", " × ").replace(" - ", " − ")
 
 @Composable
-fun MathMissionContent(params: MathParams, onComplete: () -> Unit, onEngaged: () -> Unit = {}) {
+fun MathMissionContent(params: MathParams, onComplete: () -> Unit, onEngaged: () -> Unit) {
     val colors = Wake.colors
     val fonts = Wake.fonts
     val scope = rememberCoroutineScope()
@@ -83,36 +83,33 @@ fun MathMissionContent(params: MathParams, onComplete: () -> Unit, onEngaged: ()
 
         Column(Modifier.weight(1f).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Text(
-                "${params.difficulty.name.lowercase().replaceFirstChar { it.uppercase() }} · solve to silence",
+                "${params.difficulty.label} · solve to silence",
                 color = colors.textDim, fontFamily = fonts.ui, fontSize = 13.sp,
             )
             Spacer(Modifier.height(14.dp))
-            Text(
-                prettyProblem(problem.text),
-                color = colors.text, fontFamily = fonts.num, fontWeight = fonts.numWeight,
-                fontSize = 56.sp, letterSpacing = (-1).sp, style = TextStyle(fontFeatureSettings = "tnum"),
-            )
+            NumText(prettyProblem(problem.text), fontSize = 56.sp, letterSpacing = (-1).sp)
             Spacer(Modifier.height(22.dp))
+            val shape = RoundedCornerShape(14.dp)
             val borderColor = when {
                 wrong -> colors.error
                 entry.isNotEmpty() -> colors.accent
                 else -> colors.hairStrong
             }
+            val entryColor = when {
+                wrong -> colors.error
+                entry.isEmpty() -> colors.textMute
+                else -> colors.text
+            }
             Box(
                 Modifier
-                    .offset { androidx.compose.ui.unit.IntOffset(shake.value.dp.roundToPx(), 0) }
+                    .offset { IntOffset(shake.value.dp.roundToPx(), 0) }
                     .widthIn(min = 130.dp).heightIn(min = 56.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .border(1.5.dp, borderColor, RoundedCornerShape(14.dp))
+                    .clip(shape)
+                    .border(1.5.dp, borderColor, shape)
                     .padding(horizontal = 24.dp, vertical = 8.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = entry.ifEmpty { "?" },
-                    color = if (wrong) colors.error else if (entry.isEmpty()) colors.textMute else colors.text,
-                    fontFamily = fonts.num, fontWeight = fonts.numWeight, fontSize = 34.sp,
-                    style = TextStyle(fontFeatureSettings = "tnum"),
-                )
+                NumText(entry.ifEmpty { "?" }, fontSize = 34.sp, color = entryColor)
             }
         }
 

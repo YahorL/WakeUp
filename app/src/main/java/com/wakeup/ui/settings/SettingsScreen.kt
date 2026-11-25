@@ -5,7 +5,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -18,10 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wakeup.di.Graph
-import com.wakeup.ui.components.SectionLabel
-import com.wakeup.ui.components.WakeIcon
-import com.wakeup.ui.components.WakeSwitch
-import com.wakeup.ui.components.noRippleClickable
+import com.wakeup.ui.components.*
 import com.wakeup.ui.theme.ACCENT_OPTIONS
 import com.wakeup.ui.theme.FontPairing
 import com.wakeup.ui.theme.Screen
@@ -42,10 +38,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Box(
-                    Modifier.size(40.dp).clip(CircleShape).noRippleClickable(onClick = onBack),
-                    contentAlignment = Alignment.Center,
-                ) { WakeIcon(WakeIcon.ChevronLeft, size = 24.dp, color = colors.text) }
+                WakeIconButton(WakeIcon.ChevronLeft, onClick = onBack)
                 Text("Settings", color = colors.text, fontFamily = fonts.display, fontWeight = FontWeight.Medium, fontSize = 26.sp, letterSpacing = (-0.4).sp)
             }
 
@@ -83,10 +76,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 // Appearance
                 SectionLabel("Appearance")
                 Spacer(Modifier.height(12.dp))
-                Column(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(colors.card)
-                        .border(1.dp, colors.hair, RoundedCornerShape(18.dp)).padding(horizontal = 18.dp),
-                ) {
+                Column(Modifier.fillMaxWidth().cardSurface(18.dp).padding(horizontal = 18.dp)) {
                     // Dark mode
                     Row(
                         Modifier.fillMaxWidth().padding(vertical = 15.dp),
@@ -94,37 +84,28 @@ fun SettingsScreen(onBack: () -> Unit) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            IconChip(if (settings.dark) WakeIcon.Clock else WakeIcon.Sun)
+                            IconChip(if (settings.dark) WakeIcon.Clock else WakeIcon.Sun, stroke = 1.9f)
                             Column {
                                 Text("Dark mode", color = colors.text, fontFamily = fonts.ui, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                                 Text("Gentle on 6am eyes", color = colors.textDim, fontFamily = fonts.ui, fontSize = 12.5.sp)
                             }
                         }
-                        WakeSwitch(checked = settings.dark, onCheckedChange = { store.setDark(it) })
+                        WakeSwitch(checked = settings.dark, onCheckedChange = store::setDark)
                     }
-                    HorizontalHair()
+                    Hairline()
                     // Typeface
                     Column(Modifier.fillMaxWidth().padding(vertical = 15.dp)) {
                         Text("Typeface", color = colors.text, fontFamily = fonts.ui, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                         Spacer(Modifier.height(12.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.fillMaxWidth()) {
                             FontPairing.entries.forEach { pairing ->
-                                val selected = pairing == settings.fontPairing
-                                Box(
-                                    Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(11.dp))
-                                        .background(if (selected) colors.selectedFill else Color.Transparent)
-                                        .then(if (selected) Modifier else Modifier.border(1.dp, colors.hair, RoundedCornerShape(11.dp)))
-                                        .noRippleClickable { store.setFontPairing(pairing) },
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Text(
-                                        pairing.label,
-                                        color = if (selected) colors.text else colors.textDim,
-                                        fontFamily = pairing.resolve().display,
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 13.5.sp,
-                                    )
-                                }
+                                SegmentChip(
+                                    label = pairing.label,
+                                    selected = pairing == settings.fontPairing,
+                                    onClick = { store.setFontPairing(pairing) },
+                                    modifier = Modifier.weight(1f).height(40.dp),
+                                    fontFamily = pairing.resolve().display, // preview each pairing in its own face
+                                )
                             }
                         }
                     }
@@ -140,18 +121,4 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
         }
     }
-}
-
-@Composable
-private fun IconChip(icon: WakeIcon) {
-    val colors = Wake.colors
-    Box(
-        Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(colors.accentSoft),
-        contentAlignment = Alignment.Center,
-    ) { WakeIcon(icon, size = 18.dp, color = colors.accent, stroke = 1.9f) }
-}
-
-@Composable
-private fun HorizontalHair() {
-    Box(Modifier.fillMaxWidth().height(1.dp).background(Wake.colors.hair))
 }

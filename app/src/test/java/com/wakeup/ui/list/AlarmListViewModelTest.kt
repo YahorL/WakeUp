@@ -45,15 +45,6 @@ class AlarmListViewModelTest {
         assertTrue("active alarm's pending snooze must not be cancelled", cancels.isEmpty())
     }
 
-    @Test fun deleteRemovesAlarm() = runTest {
-        val repo = FakeAlarmRepository()
-        val id = repo.upsert(Alarm(hour = 7, minute = 0))
-        val vm = AlarmListViewModel(repo, NoopScheduler())
-        vm.delete(id)
-        advanceUntilIdle()
-        assertNull(repo.getAlarm(id))
-    }
-
     @Test fun exposesAlarmsFromRepository() = runTest {
         val repo = FakeAlarmRepository()
         repo.upsert(Alarm(hour = 6, minute = 0))

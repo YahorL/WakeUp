@@ -22,12 +22,7 @@ enum class WakeIcon(val pathData: List<String>) {
     Check(listOf("M20 6 L9 17 L4 12")),
     Clock(listOf("M3 12 A9 9 0 1 0 21 12 A9 9 0 1 0 3 12", "M12 7 L12 12 L16 14")),
     ChevronLeft(listOf("M15 18 L9 12 L15 6")),
-    ChevronRight(listOf("M9 18 L15 12 L9 6")),
-    ChevronDown(listOf("M6 9 L12 15 L18 9")),
-    ChevronUp(listOf("M18 15 L12 9 L6 15")),
-    Close(listOf("M6 6 L18 18", "M18 6 L6 18")),
     Settings(listOf("M9 12 A3 3 0 1 0 15 12 A3 3 0 1 0 9 12", "M3 12 A9 9 0 1 0 21 12 A9 9 0 1 0 3 12")),
-    Repeat(listOf("M17 2 L21 6 L17 10", "M3 11 V9 a4 4 0 0 1 4 -4 h14", "M7 22 L3 18 L7 14", "M21 13 v2 a4 4 0 0 1 -4 4 H3")),
     Trash(listOf("M3 6 L5 6 L21 6", "M19 6 l-1 14 a2 2 0 0 1 -2 2 H8 a2 2 0 0 1 -2 -2 L5 6", "M10 11 L10 17", "M14 11 L14 17")),
     Bolt(listOf("M13 2 L3 14 L12 14 L11 22 L21 10 L12 10 L13 2 Z")),
     Sun(
@@ -38,7 +33,6 @@ enum class WakeIcon(val pathData: List<String>) {
         ),
     ),
     ArrowDown(listOf("M12 5 L12 19", "M19 12 L12 19 L5 12")),
-    ArrowUp(listOf("M12 19 L12 5", "M5 12 L12 5 L19 12")),
     Backspace(listOf("M21 4 H8 L1 12 l7 8 h13 a2 2 0 0 0 2 -2 V6 a2 2 0 0 0 -2 -2 z", "M18 9 L12 15", "M12 9 L18 15"));
 
     /** Parsed once; the geometry is size-independent (scaled at draw time). */

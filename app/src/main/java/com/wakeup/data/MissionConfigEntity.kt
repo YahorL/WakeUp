@@ -21,7 +21,7 @@ data class MissionConfigEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val alarmId: Long,
     val order: Int,
-    val type: String,   // MissionType.name
+    val type: String,   // "MATH" or "SQUAT"; redundant with params, kept for the v1 schema
     val params: String, // MissionParamsCodec JSON
 )
 

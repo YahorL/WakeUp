@@ -54,7 +54,7 @@ app/src/main/java/com/wakeup/
   alarm/      AlarmReceiver, AlarmService, AlarmActivity, scheduling glue, RingState
   schedule/   AlarmManagerScheduler, NextTrigger, SnoozePolicy
   data/       Room entities/DAO + AlarmRepository
-  domain/     Alarm / MissionConfig / MissionParams models, RepeatDays
+  domain/     Alarm / MissionParams models, RepeatDays
   mission/    SquatDetectorCore (+ AccelerometerSquatDetector), MathProblemGenerator
   settings/   SettingsStore (accent / dark / typeface)
   ui/         theme · components · list (Home) · edit · settings · firing (wake-up flow) · perms

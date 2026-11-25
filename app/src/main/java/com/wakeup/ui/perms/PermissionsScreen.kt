@@ -10,7 +10,6 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,20 +26,18 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.wakeup.ui.components.AccentButton
 import com.wakeup.ui.components.noRippleClickable
 import com.wakeup.ui.theme.Screen
 import com.wakeup.ui.theme.Wake
 
 /** Returns true when all alarm-critical permissions are satisfied. */
 fun alarmPermissionsGranted(context: Context): Boolean {
-    val notif = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+    val notifications = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
         ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-    else true
-    val exact = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+    val exactAlarms = Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
         (context.getSystemService(Context.ALARM_SERVICE) as AlarmManager).canScheduleExactAlarms()
-    else true
-    val overlay = Settings.canDrawOverlays(context)
-    return notif && exact && overlay
+    return notifications && exactAlarms && Settings.canDrawOverlays(context)
 }
 
 @Composable
@@ -68,6 +65,10 @@ fun PermissionsScreen(onAllGranted: () -> Unit) {
         ActivityResultContracts.RequestPermission()
     ) { refresh++ }
 
+    // Opens the system settings page where this app is granted [action].
+    fun openSettings(action: String) =
+        context.startActivity(Intent(action, Uri.parse("package:${context.packageName}")))
+
     Screen {
         Column(
             Modifier.fillMaxSize().systemBarsPadding().padding(24.dp),
@@ -81,22 +82,18 @@ fun PermissionsScreen(onAllGranted: () -> Unit) {
             )
             Spacer(Modifier.height(6.dp))
 
-            AccentButton("Allow notifications") {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+            AccentButton("Allow notifications", onClick = {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                else refresh++
-            }
-            AccentButton("Allow exact alarms") {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    context.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:${context.packageName}")))
+                } else {
+                    refresh++
                 }
-            }
-            AccentButton("Allow display over other apps") {
-                context.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}")))
-            }
-            OutlineButton("Disable battery optimization") {
-                context.startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${context.packageName}")))
-            }
+            })
+            AccentButton("Allow exact alarms", onClick = {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) openSettings(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+            })
+            AccentButton("Allow display over other apps", onClick = { openSettings(Settings.ACTION_MANAGE_OVERLAY_PERMISSION) })
+            OutlineButton("Disable battery optimization") { openSettings(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS) }
 
             Spacer(Modifier.weight(1f))
             Box(Modifier.fillMaxWidth().noRippleClickable { refresh++ }.padding(12.dp), contentAlignment = Alignment.Center) {
@@ -107,22 +104,12 @@ fun PermissionsScreen(onAllGranted: () -> Unit) {
 }
 
 @Composable
-private fun AccentButton(label: String, onClick: () -> Unit) {
-    val colors = Wake.colors
-    Box(
-        Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(16.dp)).background(colors.accent).noRippleClickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(label, color = colors.onAccent, fontFamily = Wake.fonts.ui, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-    }
-}
-
-@Composable
 private fun OutlineButton(label: String, onClick: () -> Unit) {
     val colors = Wake.colors
+    val shape = RoundedCornerShape(16.dp)
     Box(
-        Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(16.dp))
-            .border(1.5.dp, colors.hairStrong, RoundedCornerShape(16.dp)).noRippleClickable(onClick = onClick),
+        Modifier.fillMaxWidth().height(54.dp).clip(shape)
+            .border(1.5.dp, colors.hairStrong, shape).noRippleClickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Text(label, color = colors.text, fontFamily = Wake.fonts.ui, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)

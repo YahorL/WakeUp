@@ -1,12 +1,5 @@
 package com.wakeup.domain
 
-data class MissionConfig(
-    val id: Long = 0,
-    val order: Int,
-    val type: MissionType,
-    val params: MissionParams,
-)
-
 data class Alarm(
     val id: Long = 0,
     val hour: Int,
@@ -21,19 +14,21 @@ data class Alarm(
     val snoozeEnabled: Boolean = true,
     val snoozeMinutes: Int = 5,
     val maxSnoozes: Int = 1,
-    val missions: List<MissionConfig> = emptyList(),
+    /** Challenges to complete, in the order the wake-up flow runs them. */
+    val missions: List<MissionParams> = emptyList(),
 ) {
+    // The design models at most one squat mission and one math mission per alarm.
+    val squat: SquatParams? get() = missions.firstNotNullOfOrNull { it as? SquatParams }
+    val math: MathParams? get() = missions.firstNotNullOfOrNull { it as? MathParams }
+
     companion object {
-        /** Design default for a new alarm: 15 squats, then medium math ×3 (the wake-up flow runs
-         *  missions in order — squats then math). Repeats on weekdays. */
+        /** A new alarm: weekdays, 15 squats then three medium math problems. */
         fun default(hour: Int, minute: Int): Alarm = Alarm(
-            hour = hour, minute = minute,
+            hour = hour,
+            minute = minute,
             label = "Wake up",
-            repeatDays = 0b0011111, // Mon–Fri
-            missions = listOf(
-                MissionConfig(order = 0, type = MissionType.SQUAT, params = SquatParams(15)),
-                MissionConfig(order = 1, type = MissionType.MATH, params = MathParams(Difficulty.MEDIUM, 3)),
-            ),
+            repeatDays = RepeatDays.WEEKDAYS,
+            missions = listOf(SquatParams.DEFAULT, MathParams.DEFAULT),
         )
     }
 }

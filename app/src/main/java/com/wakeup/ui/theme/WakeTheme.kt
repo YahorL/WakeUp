@@ -12,8 +12,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 
-val LocalWakeColors = staticCompositionLocalOf { darkColors(ACCENT_OPTIONS[DEFAULT_ACCENT_INDEX].color) }
-val LocalWakeFonts = staticCompositionLocalOf { FontPairing.GROTESK.resolve() }
+private val LocalWakeColors = staticCompositionLocalOf { darkColors(ACCENT_OPTIONS[DEFAULT_ACCENT_INDEX].color) }
+private val LocalWakeFonts = staticCompositionLocalOf { FontPairing.GROTESK.resolve() }
 
 /** Theme accessor, mirroring `MaterialTheme.colorScheme`: `Wake.colors`, `Wake.fonts`. */
 object Wake {

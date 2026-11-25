@@ -1,24 +1,25 @@
 package com.wakeup.alarm
 
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.getValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.wakeup.di.Graph
 import com.wakeup.domain.Alarm
 import com.wakeup.domain.RepeatDays
+import com.wakeup.ui.AppTheme
 import com.wakeup.ui.firing.MissionHost
-import com.wakeup.ui.theme.WakeUpTheme
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/** The full-screen wake-up screen: ring → missions → "Alarm off". It can only be left by finishing. */
 class AlarmActivity : ComponentActivity() {
     private var alarmId: Long = -1L
     private var snoozesUsed: Int = 0
@@ -34,20 +35,13 @@ class AlarmActivity : ComponentActivity() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() { /* swallow: missions must be completed */ }
         })
-        alarmId = intent.getLongExtra(AlarmContract.EXTRA_ALARM_ID, -1L)
-        snoozesUsed = intent.getIntExtra(AlarmContract.EXTRA_SNOOZES_USED, 0)
+        alarmId = intent.alarmId
+        snoozesUsed = intent.snoozesUsed
 
         lifecycleScope.launch {
             val alarm = Graph.repository.getAlarm(alarmId) ?: Alarm(hour = 0, minute = 0)
             setContent {
-                val settings by Graph.settings.state.collectAsStateWithLifecycle()
-                val view = androidx.compose.ui.platform.LocalView.current
-                androidx.compose.runtime.SideEffect {
-                    val controller = androidx.core.view.WindowCompat.getInsetsController(window, view)
-                    controller.isAppearanceLightStatusBars = !settings.dark
-                    controller.isAppearanceLightNavigationBars = !settings.dark
-                }
-                WakeUpTheme(accent = settings.accent, dark = settings.dark, fontPairing = settings.fontPairing) {
+                AppTheme {
                     MissionHost(
                         alarm = alarm,
                         snoozesUsed = snoozesUsed,
@@ -64,11 +58,7 @@ class AlarmActivity : ComponentActivity() {
         super.onStop()
         if (!completed && !isFinishing) {
             // Brought to background without completing — relaunch over the lock screen.
-            startActivity(Intent(this, AlarmActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                putExtra(AlarmContract.EXTRA_ALARM_ID, alarmId)
-                putExtra(AlarmContract.EXTRA_SNOOZES_USED, snoozesUsed)
-            })
+            startActivity(relaunchIntent(this, alarmId, snoozesUsed))
         }
     }
 
@@ -113,26 +103,38 @@ class AlarmActivity : ComponentActivity() {
     private fun snooze() {
         completed = true
         resumeJob?.cancel()
-        val snoozeIntent = Intent(this, AlarmReceiver::class.java).apply {
-            action = AlarmContract.ACTION_SNOOZE
-            putExtra(AlarmContract.EXTRA_ALARM_ID, alarmId)
-            putExtra(AlarmContract.EXTRA_SNOOZES_USED, snoozesUsed)
-        }
-        sendBroadcast(snoozeIntent)
+        sendBroadcast(
+            Intent(this, AlarmReceiver::class.java)
+                .setAction(AlarmContract.ACTION_SNOOZE)
+                .putAlarmExtras(alarmId, snoozesUsed),
+        )
         AlarmService.stop(this)
         finish()
     }
 
     private fun showWhenLockedAndTurnScreenOn() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            setShowWhenLocked(true); setTurnScreenOn(true)
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
         } else {
             @Suppress("DEPRECATION")
             window.addFlags(
-                android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                    android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-                    android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
             )
         }
+    }
+
+    companion object {
+        /** Opens the wake-up screen for [alarmId] from outside an activity. */
+        fun launchIntent(context: Context, alarmId: Long, snoozesUsed: Int): Intent =
+            Intent(context, AlarmActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                .putAlarmExtras(alarmId, snoozesUsed)
+
+        /** Like [launchIntent], but brings an already-open wake-up screen back to the front. */
+        fun relaunchIntent(context: Context, alarmId: Long, snoozesUsed: Int): Intent =
+            launchIntent(context, alarmId, snoozesUsed).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
     }
 }
