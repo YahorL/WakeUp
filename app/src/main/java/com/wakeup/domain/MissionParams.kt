@@ -13,6 +13,7 @@ sealed interface MissionParams
 data class MathParams(val difficulty: Difficulty, val problemCount: Int) : MissionParams {
     companion object {
         val DEFAULT = MathParams(Difficulty.MEDIUM, problemCount = 3)
+        val COUNT_RANGE = 1..50
     }
 }
 
@@ -21,6 +22,7 @@ data class MathParams(val difficulty: Difficulty, val problemCount: Int) : Missi
 data class SquatParams(val squatCount: Int) : MissionParams {
     companion object {
         val DEFAULT = SquatParams(squatCount = 15)
+        val COUNT_RANGE = 1..50
     }
 }
 
