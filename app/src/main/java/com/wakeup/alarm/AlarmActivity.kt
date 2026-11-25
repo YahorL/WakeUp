@@ -47,6 +47,7 @@ class AlarmActivity : ComponentActivity() {
                         onAllComplete = { dismiss() },
                         onSnooze = { snooze() },
                         onEngaged = { onMissionEngaged() },
+                        onClose = { finish() },
                     )
                 }
             }
@@ -98,7 +99,7 @@ class AlarmActivity : ComponentActivity() {
         Graph.ringState.finish(alarmId) // synchronously, so an alarm firing right now can ring
         lifecycleScope.launch {
             Graph.wakeUps.complete(alarmId)
-            delay(2200) // let the "Alarm off" confirmation linger before closing
+            delay(5000) // let the "Alarm off" confirmation linger; its Done button closes sooner
             finish()
         }
     }
