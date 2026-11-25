@@ -12,6 +12,29 @@ class WakeUpCoordinator(
     private val ringState: RingState,
     private val now: () -> Long = System::currentTimeMillis,
 ) {
+    enum class Fired { RINGS, POSTPONED, COUNTS_AS_DONE }
+
+    /**
+     * An alarm's time has come. Decided synchronously, so two alarms set for the same minute
+     * can't both start ringing — only one wake-up runs at a time.
+     */
+    fun fire(alarmId: Long, snoozesUsed: Int): Fired {
+        val owesMissions = ringState.isActive(alarmId)
+        if (ringState.startRinging(alarmId, snoozesUsed)) return Fired.RINGS
+
+        // Another alarm is ringing.
+        if (owesMissions) {
+            // This one was snoozed with its missions still owed. Letting the ringing alarm absorb
+            // it would be a way out (snooze, then let any other alarm fire), so it tries again.
+            val retryAt = now() + RETRY_DELAY_MS
+            ringState.snoozed(alarmId, snoozesUsed, retryAt)
+            scheduler.scheduleSnooze(alarmId, retryAt, snoozesUsed)
+            return Fired.POSTPONED
+        }
+        // A fresh alarm: finishing the one that is ringing covers it too. The caller completes it.
+        return Fired.COUNTS_AS_DONE
+    }
+
     /**
      * The wake-up for [alarmId] is over — its missions were completed, or it fired while another
      * alarm was already ringing and counts as done. Unlocks it and arms its next occurrence.
@@ -60,5 +83,6 @@ class WakeUpCoordinator(
 
     companion object {
         const val RESTORE_DELAY_MS = 5_000L
+        const val RETRY_DELAY_MS = 60_000L
     }
 }

@@ -23,6 +23,32 @@ class WakeUpCoordinatorTest {
         return id
     }
 
+    @Test fun alarmRingsWhenNothingElseIsRinging() {
+        assertEquals(WakeUpCoordinator.Fired.RINGS, coordinator.fire(1, snoozesUsed = 0))
+        assertEquals(1L, ringState.ringingId)
+    }
+
+    @Test fun freshAlarmFiringWhileAnotherRingsCountsAsDone() {
+        coordinator.fire(1, snoozesUsed = 0)
+        assertEquals(WakeUpCoordinator.Fired.COUNTS_AS_DONE, coordinator.fire(2, snoozesUsed = 0))
+        assertEquals(1L, ringState.ringingId)
+    }
+
+    @Test fun snoozedAlarmFiringWhileAnotherRingsIsPostponedNotAbsorbed() {
+        // Alarm 1 was snoozed with its missions still owed; alarm 2 is ringing when the snooze fires.
+        ringState.startRinging(1, snoozesUsed = 0)
+        ringState.snoozed(1, snoozesUsed = 1, snoozeAt = now)
+        coordinator.fire(2, snoozesUsed = 0)
+
+        assertEquals(WakeUpCoordinator.Fired.POSTPONED, coordinator.fire(1, snoozesUsed = 1))
+
+        val retryAt = now + WakeUpCoordinator.RETRY_DELAY_MS
+        assertTrue("it still owes its missions", ringState.isActive(1))
+        assertEquals(listOf(RecordingScheduler.Snooze(1, retryAt, 1)), alarmManager.snoozes)
+        assertEquals(RingState.Entry(snoozesUsed = 1, snoozeAt = retryAt), ringState.entries()[1L])
+        assertEquals(2L, ringState.ringingId)
+    }
+
     @Test fun completingARepeatingAlarmArmsItsNextDayAndUnlocksIt() = runTest {
         val id = ringing(Alarm(hour = 7, minute = 0, repeatDays = RepeatDays.WEEKDAYS))
         coordinator.complete(id)

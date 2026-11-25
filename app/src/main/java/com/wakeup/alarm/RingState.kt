@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 /**
  * Tracks every alarm whose wake-up is unfinished: it has fired and is either ringing or snoozed.
  * Such an alarm is "active" and locked — it can't be edited, deleted, rescheduled or cancelled
- * until its missions are done, so there is no way around the challenge.
+ * until its missions are done, which closes the in-app ways around the challenge.
  *
  * Active alarms are persisted (they must survive process death and reboots). Which alarm is
  * *ringing right now* is deliberately in-memory only: after a restart nothing is ringing, and

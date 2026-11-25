@@ -9,6 +9,7 @@ class WakeUpApp : Application() {
         Graph.init(this)
         // A fresh process means nothing is ringing. If a wake-up was cut short (the process was
         // killed or the app force-stopped mid-ring or mid-snooze), ring it again.
-        Graph.wakeUps.restoreLostWakeUps()
+        // Must never throw (e.g. exact-alarm access revoked): this runs on every launch.
+        runCatching { Graph.wakeUps.restoreLostWakeUps() }
     }
 }

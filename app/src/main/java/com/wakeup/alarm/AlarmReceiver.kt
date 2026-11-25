@@ -34,11 +34,13 @@ class AlarmReceiver : BroadcastReceiver() {
         val snoozesUsed = intent.snoozesUsed
         if (alarmId < 0) return
 
-        // Decided synchronously, so two alarms set for the same minute can't both start ringing.
-        if (!Graph.ringState.startRinging(alarmId, snoozesUsed)) {
-            // Another alarm is already ringing: finishing that one covers this one too.
-            inBackground { Graph.wakeUps.complete(alarmId) }
-            return
+        when (Graph.wakeUps.fire(alarmId, snoozesUsed)) {
+            WakeUpCoordinator.Fired.RINGS -> Unit
+            WakeUpCoordinator.Fired.POSTPONED -> return
+            WakeUpCoordinator.Fired.COUNTS_AS_DONE -> {
+                inBackground { Graph.wakeUps.complete(alarmId) }
+                return
+            }
         }
 
         val service = Intent(context, AlarmService::class.java).putAlarmExtras(alarmId, snoozesUsed)
