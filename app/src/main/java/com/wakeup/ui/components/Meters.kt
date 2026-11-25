@@ -113,15 +113,22 @@ fun TickRuler(reps: Int, modifier: Modifier = Modifier) {
     }
 }
 
-/** Ten small bars; the first [filled] carry the accent gradient. */
+/**
+ * A track of [segments] small bars that fills left to right as [value] approaches [max]; the
+ * leading bar fills partially, so any count up to [max] reads on the same ten bars.
+ */
 @Composable
-fun DotBar(filled: Int, modifier: Modifier = Modifier, total: Int = 10) {
+fun DotBar(value: Int, max: Int, modifier: Modifier = Modifier, segments: Int = 10) {
     val colors = Wake.colors
     val reduceMotion = LocalReduceMotion.current
-    val elapsed = entranceMillis(140 + total * 35 + 450)
+    val elapsed = entranceMillis(140 + segments * 35 + 450)
+    val filled by animateFloatAsState(
+        (value.toFloat() / max).coerceIn(0f, 1f) * segments,
+        if (reduceMotion) snap() else tween(300),
+        label = "dots",
+    )
     Row(modifier.fillMaxWidth().clearAndSetSemantics { }, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        repeat(total) { i ->
-            val on by animateFloatAsState(if (i < filled) 1f else 0f, if (reduceMotion) snap() else tween(300), label = "dot")
+        repeat(segments) { i ->
             val grow = EaseOutExpo.transform(((elapsed - (140 + i * 35)) / 450f).coerceIn(0f, 1f))
             Box(
                 Modifier
@@ -136,7 +143,8 @@ fun DotBar(filled: Int, modifier: Modifier = Modifier, total: Int = 10) {
                     }
                     .drawBehind {
                         drawRect(white(0.14f))
-                        drawRect(colors.fill, alpha = on)
+                        val part = (filled - i).coerceIn(0f, 1f)
+                        if (part > 0f) drawRect(colors.fill, size = Size(size.width * part, size.height))
                     },
             )
         }
