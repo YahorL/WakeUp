@@ -9,15 +9,12 @@ import kotlin.math.roundToInt
 
 // ── Clock (the model stores 24-hour time; alarms are shown on a 12-hour clock) ──
 
-fun hour12(hour24: Int): Int {
+private fun hour12(hour24: Int): Int {
     val h = hour24 % 12
     return if (h == 0) 12 else h
 }
 
-fun periodLabel(hour24: Int): String = if (hour24 >= 12) "PM" else "AM"
-
-/** e.g. "6:30" — pair with [periodLabel]. */
-fun Alarm.time12(): String = "${hour12(hour)}:%02d".format(minute)
+private fun periodLabel(hour24: Int): String = if (hour24 >= 12) "PM" else "AM"
 
 /** A clock time split so the AM/PM marker can be set smaller than the digits. */
 data class ClockText(val time: String, val period: String?) {
@@ -73,14 +70,6 @@ fun daysText(mask: Int): String = when (mask) {
 // ── Missions ─────────────────────────────────────────────────────────────────
 
 val Difficulty.label: String get() = name.lowercase().replaceFirstChar { it.uppercase() }
-
-/** What the alarm asks for, e.g. ["15 squats", "3 problems"]; empty if it has no missions. */
-fun Alarm.missionSummary(): List<String> = buildList {
-    val squats = squat?.squatCount ?: 0
-    val problems = math?.problemCount ?: 0
-    if (squats > 0) add("$squats squats")
-    if (problems > 0) add("$problems problems")
-}
 
 private fun squatsText(count: Int) = if (count == 1) "1 squat" else "$count squats"
 private fun problemsText(count: Int) = if (count == 1) "1 problem" else "$count problems"

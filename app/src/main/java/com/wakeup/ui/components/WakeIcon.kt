@@ -17,25 +17,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.wakeup.ui.theme.Wake
 
-/** The geometric line-icon set, drawn from the design's exact 24×24 SVG paths. */
+/** The line-icon set, drawn from the Liquid Glass design's 24×24 SVG paths. */
 enum class WakeIcon(val pathData: List<String>) {
     Plus(listOf("M12 5 L12 19", "M5 12 L19 12")),
-    Check(listOf("M20 6 L9 17 L4 12")),
-    Clock(listOf("M3 12 A9 9 0 1 0 21 12 A9 9 0 1 0 3 12", "M12 7 L12 12 L16 14")),
-    ChevronLeft(listOf("M15 18 L9 12 L15 6")),
-    Settings(listOf("M9 12 A3 3 0 1 0 15 12 A3 3 0 1 0 9 12", "M3 12 A9 9 0 1 0 21 12 A9 9 0 1 0 3 12")),
-    Trash(listOf("M3 6 L5 6 L21 6", "M19 6 l-1 14 a2 2 0 0 1 -2 2 H8 a2 2 0 0 1 -2 -2 L5 6", "M10 11 L10 17", "M14 11 L14 17")),
-    Bolt(listOf("M13 2 L3 14 L12 14 L11 22 L21 10 L12 10 L13 2 Z")),
-    Sun(
-        listOf(
-            "M8 12 A4 4 0 1 0 16 12 A4 4 0 1 0 8 12",
-            "M12 2 L12 4", "M12 20 L12 22", "M4.2 4.2 L5.6 5.6", "M18.4 18.4 L19.8 19.8",
-            "M2 12 L4 12", "M20 12 L22 12", "M4.2 19.8 L5.6 18.4", "M18.4 5.6 L19.8 4.2",
-        ),
-    ),
-    ArrowDown(listOf("M12 5 L12 19", "M19 12 L12 19 L5 12")),
-
-    // ── Liquid Glass set (paths from the design's reference files) ──
     Back(listOf("M15 5 l-7 7 l7 7")),
     Sliders(listOf("M4 7 h10", "M18 7 h2", "M4 17 h4", "M12 17 h8", "M14 7 A2 2 0 1 0 18 7 A2 2 0 1 0 14 7", "M8 17 A2 2 0 1 0 12 17 A2 2 0 1 0 8 17")),
     Bin(listOf("M4 7 h16", "M9 7 V4.5 h6 V7", "M6.5 7 l1 13 h9 l1 -13", "M10 11 v5", "M14 11 v5")),

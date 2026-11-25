@@ -26,8 +26,4 @@ private val IbmPlexMono = FontFamily(
  * The two bundled families: [display] (Outfit) for everything, [mono] (IBM Plex Mono) for the
  * small uppercase section labels. Bundled so they render on the lock screen without a network.
  */
-data class WakeFonts(val display: FontFamily = Outfit, val mono: FontFamily = IbmPlexMono) {
-    @Deprecated("old design system") val ui get() = display
-    @Deprecated("old design system") val num get() = display
-    @Deprecated("old design system") val numWeight get() = FontWeight.ExtraLight
-}
+data class WakeFonts(val display: FontFamily = Outfit, val mono: FontFamily = IbmPlexMono)

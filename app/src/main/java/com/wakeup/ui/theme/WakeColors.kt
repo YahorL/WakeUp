@@ -44,18 +44,4 @@ data class WakeColors(val palette: Palette) {
         start = Offset.Zero,
         end = Offset.Infinite,
     )
-
-    // ── Aliases for screens not yet moved to the new tokens. Removed with the old design system. ──
-    @Deprecated("old design system") val accent get() = palette.orb2
-    @Deprecated("old design system") val onAccent get() = Color.White
-    @Deprecated("old design system") val accentSoft get() = palette.orb2.copy(alpha = 0.22f)
-    @Deprecated("old design system") val bg2 get() = Color.White.copy(alpha = 0.06f)
-    @Deprecated("old design system") val card get() = Color.White.copy(alpha = 0.08f)
-    @Deprecated("old design system") val textDim get() = textSecondary
-    @Deprecated("old design system") val textMute get() = textTertiary
-    @Deprecated("old design system") val hair get() = hairline
-    @Deprecated("old design system") val hairStrong get() = Color.White.copy(alpha = 0.18f)
-    @Deprecated("old design system") val selectedFill get() = Color.White.copy(alpha = 0.14f)
-    @Deprecated("old design system") val switchOffTrack get() = Color.White.copy(alpha = 0.10f)
-    @Deprecated("old design system") val keyBg get() = Color.White.copy(alpha = 0.08f)
 }
