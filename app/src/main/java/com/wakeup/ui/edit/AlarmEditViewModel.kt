@@ -5,17 +5,26 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.wakeup.data.AlarmRepository
 import com.wakeup.di.Graph
-import com.wakeup.domain.*
+import com.wakeup.domain.Alarm
+import com.wakeup.domain.Difficulty
+import com.wakeup.domain.MathParams
+import com.wakeup.domain.RepeatDays
+import com.wakeup.domain.SquatParams
 import com.wakeup.schedule.AlarmScheduler
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class AlarmEditViewModel(
     private val repository: AlarmRepository,
     private val alarmId: Long?,
     private val scheduler: AlarmScheduler,
+    activeAlarms: StateFlow<Set<Long>> = MutableStateFlow(emptySet()),
 ) : ViewModel() {
 
     private val _draft = MutableStateFlow(Alarm.default(hour = 6, minute = 30))
@@ -23,80 +32,58 @@ class AlarmEditViewModel(
 
     val isNew: Boolean = alarmId == null
 
+    /** True while this alarm is ringing or snoozed: it can't be changed until the wake-up is done. */
+    val locked: StateFlow<Boolean> = activeAlarms
+        .map { alarmId in it }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, alarmId in activeAlarms.value)
+
     init {
         if (alarmId != null) viewModelScope.launch {
             repository.getAlarm(alarmId)?.let { _draft.value = it }
         }
     }
 
-    fun setTime(hour: Int, minute: Int) { _draft.value = _draft.value.copy(hour = hour, minute = minute) }
-    fun setLabel(label: String) { _draft.value = _draft.value.copy(label = label) }
-    fun toggleRepeatDay(dayIndex: Int) {
-        _draft.value = _draft.value.copy(repeatDays = RepeatDays.toggle(_draft.value.repeatDays, dayIndex))
-    }
-    fun setSound(uri: String?) { _draft.value = _draft.value.copy(soundUri = uri) }
-    fun setVibrate(v: Boolean) { _draft.value = _draft.value.copy(vibrate = v) }
-    fun setGradualVolume(v: Boolean) { _draft.value = _draft.value.copy(gradualVolume = v) }
-    fun setSnoozeEnabled(v: Boolean) { _draft.value = _draft.value.copy(snoozeEnabled = v) }
-    fun setSnoozeMinutes(m: Int) { _draft.value = _draft.value.copy(snoozeMinutes = m) }
-    fun setMaxSnoozes(n: Int) { _draft.value = _draft.value.copy(maxSnoozes = n) }
+    fun setTime(hour: Int, minute: Int) = _draft.update { it.copy(hour = hour, minute = minute) }
 
-    fun addMission(type: MissionType) {
-        val params: MissionParams = when (type) {
-            MissionType.MATH -> MathParams(Difficulty.MEDIUM, 3)
-            MissionType.SQUAT -> SquatParams(10)
-        }
-        val next = _draft.value.missions + MissionConfig(order = _draft.value.missions.size, type = type, params = params)
-        _draft.value = _draft.value.copy(missions = reindex(next))
-    }
+    fun setHour(hour: Int) = _draft.update { it.copy(hour = hour) }
 
-    fun removeMission(index: Int) {
-        _draft.value = _draft.value.copy(missions = reindex(_draft.value.missions.filterIndexed { i, _ -> i != index }))
-    }
+    fun setMinute(minute: Int) = _draft.update { it.copy(minute = minute) }
 
-    fun moveMission(from: Int, to: Int) {
-        val list = _draft.value.missions.toMutableList()
-        if (from !in list.indices || to !in list.indices) return
-        list.add(to, list.removeAt(from))
-        _draft.value = _draft.value.copy(missions = reindex(list))
-    }
+    fun setLabel(label: String) = _draft.update { it.copy(label = label) }
 
-    fun updateMissionParams(index: Int, params: MissionParams) {
-        val list = _draft.value.missions.toMutableList()
-        list[index] = list[index].copy(params = params)
-        _draft.value = _draft.value.copy(missions = list)
-    }
+    fun toggleRepeatDay(dayIndex: Int) =
+        _draft.update { it.copy(repeatDays = RepeatDays.toggle(it.repeatDays, dayIndex)) }
 
-    // ── Design-model challenge helpers (at most one squat + one math, squats-first) ──
+    fun setSquatsEnabled(enabled: Boolean) =
+        setMissions(squat = if (enabled) squat ?: SquatParams.DEFAULT else null)
 
-    private fun currentSquat(): SquatParams? =
-        _draft.value.missions.map { it.params }.filterIsInstance<SquatParams>().firstOrNull()
+    fun setSquatCount(count: Int) = setMissions(squat = SquatParams(count.coerceIn(SquatParams.COUNT_RANGE)))
 
-    private fun currentMath(): MathParams? =
-        _draft.value.missions.map { it.params }.filterIsInstance<MathParams>().firstOrNull()
+    fun setMathEnabled(enabled: Boolean) =
+        setMissions(math = if (enabled) math ?: MathParams.DEFAULT else null)
 
-    /** Rebuild the mission list in the canonical wake-up order: squats first, then math. */
-    private fun apply(squat: SquatParams?, math: MathParams?) {
-        val list = buildList {
-            if (squat != null) add(MissionConfig(order = size, type = MissionType.SQUAT, params = squat))
-            if (math != null) add(MissionConfig(order = size, type = MissionType.MATH, params = math))
-        }
-        _draft.value = _draft.value.copy(missions = list)
-    }
+    fun setMathDifficulty(difficulty: Difficulty) =
+        setMissions(math = (math ?: MathParams.DEFAULT).copy(difficulty = difficulty))
 
-    fun setSquatsEnabled(enabled: Boolean) = apply(if (enabled) currentSquat() ?: SquatParams(15) else null, currentMath())
-    fun setSquatCount(count: Int) = apply(SquatParams(count.coerceIn(1, 50)), currentMath())
-    fun setMathEnabled(enabled: Boolean) = apply(currentSquat(), if (enabled) currentMath() ?: MathParams(Difficulty.MEDIUM, 3) else null)
-    fun setMathDifficulty(difficulty: Difficulty) = apply(currentSquat(), (currentMath() ?: MathParams(Difficulty.MEDIUM, 3)).copy(difficulty = difficulty))
-    fun setMathCount(count: Int) = apply(currentSquat(), (currentMath() ?: MathParams(Difficulty.MEDIUM, 3)).copy(problemCount = count.coerceIn(1, 10)))
+    fun setMathCount(count: Int) =
+        setMissions(math = (math ?: MathParams.DEFAULT).copy(problemCount = count.coerceIn(MathParams.COUNT_RANGE)))
+
+    private val squat: SquatParams? get() = _draft.value.squat
+    private val math: MathParams? get() = _draft.value.math
+
+    /** The wake-up flow always runs squats first, then math. */
+    private fun setMissions(squat: SquatParams? = this.squat, math: MathParams? = this.math) =
+        _draft.update { it.copy(missions = listOfNotNull(squat, math)) }
 
     fun save(onSaved: (Long) -> Unit = {}) = viewModelScope.launch {
+        if (locked.value) return@launch
         val id = repository.upsert(_draft.value)
         scheduler.schedule(_draft.value.copy(id = id))
         onSaved(id)
     }
 
     fun delete(onDeleted: () -> Unit = {}) = viewModelScope.launch {
+        if (locked.value) return@launch
         if (alarmId != null) {
             scheduler.cancel(alarmId)
             repository.delete(alarmId)
@@ -104,14 +91,11 @@ class AlarmEditViewModel(
         onDeleted()
     }
 
-    private fun reindex(list: List<MissionConfig>): List<MissionConfig> =
-        list.mapIndexed { i, m -> m.copy(order = i) }
-
     companion object {
         fun factory(alarmId: Long?): ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                AlarmEditViewModel(Graph.repository, alarmId, Graph.scheduler) as T
+                AlarmEditViewModel(Graph.repository, alarmId, Graph.scheduler, Graph.ringState.activeIds) as T
         }
     }
 }

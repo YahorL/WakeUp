@@ -1,43 +1,91 @@
 package com.wakeup.ui.edit
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
+import android.text.format.DateFormat
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimePicker
-import androidx.compose.material3.rememberTimePickerState
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.wakeup.domain.Alarm
 import com.wakeup.domain.Difficulty
+import com.wakeup.domain.MathParams
 import com.wakeup.domain.RepeatDays
-import com.wakeup.ui.*
-import com.wakeup.ui.components.*
+import com.wakeup.domain.SquatParams
+import com.wakeup.schedule.NextTrigger
+import com.wakeup.ui.DAY_CHIPS
+import com.wakeup.ui.challengeSummary
+import com.wakeup.ui.components.AngledGradient
+import com.wakeup.ui.components.ChallengeIconTile
+import com.wakeup.ui.components.Chip
+import com.wakeup.ui.components.DayPill
+import com.wakeup.ui.components.DotBar
+import com.wakeup.ui.components.GlassIconButton
+import com.wakeup.ui.components.GlassRecipe
+import com.wakeup.ui.components.Hairline
+import com.wakeup.ui.components.Label
+import com.wakeup.ui.components.MonoLabel
+import com.wakeup.ui.components.PrimaryButton
+import com.wakeup.ui.components.SegmentedControl
+import com.wakeup.ui.components.Stepper
+import com.wakeup.ui.components.TickRuler
+import com.wakeup.ui.components.TimeWheel
+import com.wakeup.ui.components.Toggle
+import com.wakeup.ui.components.WakeIcon
+import com.wakeup.ui.components.bump
+import com.wakeup.ui.components.glass
+import com.wakeup.ui.components.surface
+import com.wakeup.ui.components.white
+import com.wakeup.ui.formatCountdown
+import com.wakeup.ui.label
+import com.wakeup.ui.repeatSummary
+import com.wakeup.ui.theme.EaseOutExpo
+import com.wakeup.ui.theme.LocalReduceMotion
+import com.wakeup.ui.theme.OrbLayout
 import com.wakeup.ui.theme.Screen
 import com.wakeup.ui.theme.Wake
+import com.wakeup.ui.theme.riseIn
+import kotlinx.coroutines.delay
+import java.time.ZonedDateTime
 
-private val DAY_LETTERS = listOf("S", "M", "T", "W", "T", "F", "S")
-private fun modelBit(designDay: Int) = (designDay + 6) % 7
-private fun Difficulty.label() = name.lowercase().replaceFirstChar { it.uppercase() }
+private val DAY_NAMES = listOf("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlarmEditScreen(
     alarmId: Long?,
@@ -45,206 +93,220 @@ fun AlarmEditScreen(
     viewModel: AlarmEditViewModel = viewModel(factory = AlarmEditViewModel.factory(alarmId)),
 ) {
     val draft by viewModel.draft.collectAsStateWithLifecycle()
+    val locked by viewModel.locked.collectAsStateWithLifecycle()
     val colors = Wake.colors
-    val fonts = Wake.fonts
-    var showTimePicker by remember { mutableStateOf(false) }
+    val is24h = DateFormat.is24HourFormat(LocalContext.current)
 
-    val squat = draft.squatParams()
-    val math = draft.mathParams()
-
-    Screen {
-        Column(Modifier.fillMaxSize().systemBarsPadding()) {
+    Screen(OrbLayout.EDITOR) {
+        Column(
+            Modifier.fillMaxSize().statusBarsPadding().imePadding().verticalScroll(rememberScrollState())
+                .navigationBarsPadding().padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 28.dp),
+        ) {
             // Top bar
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 14.dp).padding(top = 14.dp, bottom = 6.dp),
+                Modifier.fillMaxWidth().riseIn(0),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                IconButtonBox(WakeIcon.ChevronLeft, colors.text, stroke = 2f) { onDone() }
-                Text(if (viewModel.isNew) "New alarm" else "Edit alarm", color = colors.text, fontFamily = fonts.ui, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                IconButtonBox(WakeIcon.Trash, colors.textDim, size = 20.dp, stroke = 1.8f) { viewModel.delete { onDone() } }
+                GlassIconButton(WakeIcon.Back, "Back to alarms", onDone)
+                Label(if (viewModel.isNew) "New alarm" else "Edit alarm", 18f, weight = FontWeight.Medium, tracking = -0.01f)
+                if (locked) {
+                    Spacer(Modifier.size(44.dp)) // keeps the title centered
+                } else {
+                    GlassIconButton(WakeIcon.Bin, "Delete alarm", { viewModel.delete(onDone) })
+                }
             }
 
+            // Time
             Column(
-                Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())
-                    .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 16.dp),
+                Modifier.padding(top = 20.dp).fillMaxWidth().riseIn(80)
+                    .glass(GlassRecipe.HERO, RoundedCornerShape(32.dp))
+                    .padding(start = 14.dp, end = 14.dp, top = 14.dp, bottom = 18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                // Time — tap to set via the standard Android time picker.
-                Column(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        "%02d:%02d".format(draft.hour, draft.minute),
-                        color = colors.text, fontFamily = fonts.num, fontWeight = fonts.numWeight,
-                        fontSize = 64.sp, letterSpacing = (-2).sp, style = TextStyle(fontFeatureSettings = "tnum"),
-                        modifier = Modifier.noRippleClickable { showTimePicker = true }.padding(horizontal = 8.dp, vertical = 4.dp),
-                    )
-                    Text("Tap to change", color = colors.textMute, fontFamily = fonts.ui, fontSize = 12.5.sp)
+                TimeWheel(draft.hour, draft.minute, is24h, viewModel::setHour, viewModel::setMinute)
+                Spacer(Modifier.height(4.dp))
+                val ringsIn = ringsInText(draft)
+                Chip { Label(ringsIn, 13f, Modifier.bump(ringsIn), maxLines = 1) }
+            }
+
+            // Label
+            Column(Modifier.padding(top = 24.dp).riseIn(160), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                MonoLabel("Label")
+                LabelField(draft.label, viewModel::setLabel)
+            }
+
+            // Repeat
+            Column(Modifier.padding(top = 24.dp).riseIn(220), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                val summary = repeatSummary(draft.repeatDays)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    MonoLabel("Repeat")
+                    Label(summary, 13f, Modifier.bump(summary), color = colors.textSecondary, maxLines = 1)
                 }
+                RepeatDayPicker(draft.repeatDays, viewModel::toggleRepeatDay)
+            }
 
-                // Label
-                SectionLabel("Label")
-                Spacer(Modifier.height(12.dp))
-                Box(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(colors.card)
-                        .border(1.dp, colors.hair, RoundedCornerShape(14.dp)).padding(horizontal = 16.dp, vertical = 13.dp),
-                ) {
-                    BasicTextField(
-                        value = draft.label,
-                        onValueChange = viewModel::setLabel,
-                        singleLine = true,
-                        textStyle = TextStyle(color = colors.text, fontFamily = fonts.ui, fontSize = 15.sp),
-                        cursorBrush = SolidColor(colors.accent),
-                        modifier = Modifier.fillMaxWidth(),
-                        decorationBox = { inner ->
-                            if (draft.label.isEmpty()) {
-                                Text("Label", color = colors.textMute, fontFamily = fonts.ui, fontSize = 15.sp)
-                            }
-                            inner()
-                        },
-                    )
-                }
+            MonoLabel("To turn it off", Modifier.padding(top = 28.dp))
 
-                Spacer(Modifier.height(22.dp))
-
-                // Repeat
-                SectionLabel("Repeat")
-                Spacer(Modifier.height(12.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    DAY_LETTERS.forEachIndexed { j, letter ->
-                        val active = RepeatDays.isSet(draft.repeatDays, modelBit(j))
-                        Box(
-                            Modifier.size(38.dp).clip(CircleShape)
-                                .background(if (active) colors.accent else Color.Transparent)
-                                .then(if (active) Modifier else Modifier.border(1.5.dp, colors.hair, CircleShape))
-                                .noRippleClickable { viewModel.toggleRepeatDay(modelBit(j)) },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(letter, color = if (active) colors.onAccent else colors.textDim, fontFamily = fonts.ui, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                        }
+            val squat = draft.squat
+            val math = draft.math
+            ChallengeCard(
+                icon = WakeIcon.SquatDown, title = "Squats", subtitle = "Counted by motion sensor",
+                toggleLabel = "Squats challenge", enabled = squat != null, onEnabledChange = viewModel::setSquatsEnabled,
+                modifier = Modifier.padding(top = 10.dp).riseIn(300),
+            ) {
+                // Shows the last settings while the panel collapses.
+                val shown = rememberLast(squat) ?: SquatParams.DEFAULT
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    SettingRow("Reps required") {
+                        Stepper(shown.squatCount, SquatParams.COUNT_RANGE, viewModel::setSquatCount, noun = "reps")
                     }
+                    TickRuler(shown.squatCount)
                 }
-
-                Spacer(Modifier.height(22.dp))
-
-                // Challenge builder
-                SectionLabel("To turn it off")
-                Spacer(Modifier.height(12.dp))
-                Column(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(colors.card)
-                        .border(1.dp, colors.hair, RoundedCornerShape(18.dp)).padding(horizontal = 18.dp),
-                ) {
-                    // Squats
-                    Column(Modifier.fillMaxWidth().padding(vertical = 16.dp)) {
-                        ChallengeHeader(
-                            icon = WakeIcon.ArrowDown, title = "Squats", subtitle = "Counted by motion sensor",
-                            checked = squat != null, onCheckedChange = viewModel::setSquatsEnabled,
-                        )
-                        if (squat != null) {
-                            Spacer(Modifier.height(14.dp))
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("Reps required", color = colors.textDim, fontFamily = fonts.ui, fontSize = 13.5.sp)
-                                Stepper(value = squat.squatCount, range = 1..50, onChange = viewModel::setSquatCount)
-                            }
-                        }
-                    }
-                    Box(Modifier.fillMaxWidth().height(1.dp).background(colors.hair))
-                    // Math
-                    Column(Modifier.fillMaxWidth().padding(vertical = 16.dp)) {
-                        ChallengeHeader(
-                            icon = WakeIcon.Bolt, title = "Math problems", subtitle = "Solve to silence",
-                            checked = math != null, onCheckedChange = viewModel::setMathEnabled,
-                        )
-                        if (math != null) {
-                            Spacer(Modifier.height(14.dp))
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                                Difficulty.entries.forEach { d ->
-                                    val selected = math.difficulty == d
-                                    Box(
-                                        Modifier.weight(1f).height(38.dp).clip(RoundedCornerShape(11.dp))
-                                            .background(if (selected) colors.selectedFill else Color.Transparent)
-                                            .then(if (selected) Modifier else Modifier.border(1.dp, colors.hair, RoundedCornerShape(11.dp)))
-                                            .noRippleClickable { viewModel.setMathDifficulty(d) },
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        Text(d.label(), color = if (selected) colors.text else colors.textDim, fontFamily = fonts.ui, fontWeight = FontWeight.SemiBold, fontSize = 13.5.sp)
-                                    }
-                                }
-                            }
-                            Spacer(Modifier.height(14.dp))
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("How many", color = colors.textDim, fontFamily = fonts.ui, fontSize = 13.5.sp)
-                                Stepper(value = math.problemCount, range = 1..10, onChange = viewModel::setMathCount)
-                            }
-                        }
-                    }
-                }
-
-                if (squat != null && math != null) {
-                    Spacer(Modifier.height(14.dp))
-                    Text(
-                        "You'll do ${squat.squatCount} squats and solve ${math.problemCount} ${math.difficulty.label().lowercase()} problems to turn this alarm off.",
-                        color = colors.textDim, fontFamily = fonts.ui, fontSize = 12.5.sp, lineHeight = 19.sp,
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            }
+            ChallengeCard(
+                icon = WakeIcon.MathOps, title = "Math problems", subtitle = "Solve to silence",
+                toggleLabel = "Math challenge", enabled = math != null, onEnabledChange = viewModel::setMathEnabled,
+                modifier = Modifier.padding(top = 12.dp).riseIn(370),
+            ) {
+                val shown = rememberLast(math) ?: MathParams.DEFAULT
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    SegmentedControl(
+                        options = Difficulty.entries.map { it.label },
+                        selectedIndex = shown.difficulty.ordinal,
+                        onSelect = { viewModel.setMathDifficulty(Difficulty.entries[it]) },
                     )
+                    SettingRow("How many") {
+                        Stepper(shown.problemCount, MathParams.COUNT_RANGE, viewModel::setMathCount, noun = "problems")
+                    }
+                    DotBar(shown.problemCount, MathParams.COUNT_RANGE.last)
                 }
             }
 
-            // Save footer
-            Box(
-                Modifier.fillMaxWidth().background(colors.bg).padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 16.dp),
-            ) {
-                Box(Modifier.fillMaxWidth().align(Alignment.TopCenter).height(1.dp).background(colors.hair))
-                Box(
-                    Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(16.dp)).background(colors.accent)
-                        .noRippleClickable { viewModel.save { onDone() } },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("Save alarm", color = colors.onAccent, fontFamily = fonts.ui, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                }
+            Label(
+                challengeSummary(squat, math), 14f,
+                Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, top = 22.dp),
+                color = colors.textSecondary, lineHeight = 1.45f, align = TextAlign.Center,
+            )
+
+            Spacer(Modifier.height(28.dp))
+            if (locked) {
+                Label(
+                    "This alarm is ringing or snoozed. Finish the wake-up to change it.", 14f,
+                    Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                    color = colors.textSecondary, lineHeight = 1.45f, align = TextAlign.Center,
+                )
+            } else {
+                PrimaryButton("Save alarm", { viewModel.save { onDone() } }, Modifier.riseIn(450))
             }
         }
     }
+}
 
-    if (showTimePicker) {
-        val state = rememberTimePickerState(initialHour = draft.hour, initialMinute = draft.minute, is24Hour = true)
-        AlertDialog(
-            onDismissRequest = { showTimePicker = false },
-            confirmButton = {
-                TextButton(onClick = { viewModel.setTime(state.hour, state.minute); showTimePicker = false }) { Text("OK") }
+/** Keeps returning the last non-null [value], so a collapsing panel still has something to show. */
+@Composable
+private fun <T : Any> rememberLast(value: T?): T? {
+    var last by remember { mutableStateOf(value) }
+    if (value != null) last = value
+    return last
+}
+
+/** "Rings in 8 h 44 min", refreshed as the draft changes and as time passes. */
+@Composable
+private fun ringsInText(draft: Alarm): String {
+    var now by remember { mutableStateOf(ZonedDateTime.now()) }
+    LaunchedEffect(Unit) {
+        while (true) { delay(30_000); now = ZonedDateTime.now() }
+    }
+    val trigger = NextTrigger.compute(now, draft.hour, draft.minute, draft.repeatDays)
+    return "Rings in ${formatCountdown(trigger - now.toInstant().toEpochMilli())}"
+}
+
+@Composable
+private fun LabelField(label: String, onChange: (String) -> Unit) {
+    val colors = Wake.colors
+    val style = TextStyle(color = colors.text, fontFamily = Wake.fonts.display, fontSize = 17.sp)
+    Box(
+        Modifier.fillMaxWidth().height(56.dp)
+            .surface(
+                RoundedCornerShape(20.dp),
+                AngledGradient(160f, 0f to white(0.10f), 1f to white(0.03f)),
+                border = white(0.14f), highlight = white(0.12f),
+            )
+            .padding(horizontal = 18.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        BasicTextField(
+            value = label,
+            onValueChange = onChange,
+            singleLine = true,
+            textStyle = style,
+            cursorBrush = SolidColor(colors.orb2),
+            modifier = Modifier.fillMaxWidth(),
+            decorationBox = { inner ->
+                if (label.isEmpty()) Label("Alarm name", 17f, color = colors.textTertiary, maxLines = 1)
+                inner()
             },
-            dismissButton = { TextButton(onClick = { showTimePicker = false }) { Text("Cancel") } },
-            text = { TimePicker(state = state) },
         )
     }
 }
 
 @Composable
-private fun ChallengeHeader(
+private fun RepeatDayPicker(repeatDays: Int, onToggle: (Int) -> Unit) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        // 46dp pills, shrinking on narrow screens so seven always fit with a little air between.
+        val pill = minOf(46.dp, (maxWidth - 4.dp * 6) / 7)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            DAY_CHIPS.forEachIndexed { i, (letter, bit) ->
+                DayPill(letter, RepeatDays.isSet(repeatDays, bit), { onToggle(bit) }, DAY_NAMES[i], size = pill)
+            }
+        }
+    }
+}
+
+/** A challenge's glass card: header with icon, title and switch, and a settings panel that unfolds when on. */
+@Composable
+private fun ChallengeCard(
     icon: WakeIcon,
     title: String,
     subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
+    toggleLabel: String,
+    enabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    settings: @Composable () -> Unit,
 ) {
-    val colors = Wake.colors
-    val fonts = Wake.fonts
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(colors.accentSoft), contentAlignment = Alignment.Center) {
-                WakeIcon(icon, size = if (icon == WakeIcon.Bolt) 18.dp else 19.dp, color = colors.accent, stroke = if (icon == WakeIcon.Bolt) 2f else 2.2f)
+    val reduceMotion = LocalReduceMotion.current
+    Column(modifier.fillMaxWidth().glass(GlassRecipe.CARD, RoundedCornerShape(28.dp)).padding(18.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            ChallengeIconTile(icon, active = enabled, animated = true)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Label(title, 18f, weight = FontWeight.Medium, maxLines = 1)
+                Label(subtitle, 13f, color = Wake.colors.textSecondary, maxLines = 1)
             }
+            Toggle(enabled, onEnabledChange, toggleLabel)
+        }
+        AnimatedVisibility(
+            visible = enabled,
+            enter = if (reduceMotion) expandVertically(snap()) + fadeIn(snap())
+            else expandVertically(tween(450, easing = EaseOutExpo)) + fadeIn(tween(350, delayMillis = 100)),
+            exit = if (reduceMotion) shrinkVertically(snap()) + fadeOut(snap())
+            else shrinkVertically(tween(450, easing = EaseOutExpo)) + fadeOut(tween(200)),
+        ) {
             Column {
-                Text(title, color = colors.text, fontFamily = fonts.ui, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, maxLines = 1)
-                Text(subtitle, color = colors.textDim, fontFamily = fonts.ui, fontSize = 12.5.sp, maxLines = 1)
+                Spacer(Modifier.height(16.dp))
+                Hairline()
+                Spacer(Modifier.height(16.dp))
+                settings()
             }
         }
-        WakeSwitch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 
 @Composable
-private fun IconButtonBox(icon: WakeIcon, color: Color, size: androidx.compose.ui.unit.Dp = 24.dp, stroke: Float = 2f, onClick: () -> Unit) {
-    Box(Modifier.size(40.dp).clip(CircleShape).noRippleClickable(onClick = onClick), contentAlignment = Alignment.Center) {
-        WakeIcon(icon, size = size, color = color, stroke = stroke)
+private fun SettingRow(label: String, control: @Composable () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+        Label(label, 15f, color = Wake.colors.textMuted, maxLines = 1)
+        control()
     }
 }

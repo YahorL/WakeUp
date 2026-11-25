@@ -4,16 +4,27 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
+/** One wake-up challenge and its settings. */
 @Serializable
 sealed interface MissionParams
 
 @Serializable
 @SerialName("math")
-data class MathParams(val difficulty: Difficulty, val problemCount: Int) : MissionParams
+data class MathParams(val difficulty: Difficulty, val problemCount: Int) : MissionParams {
+    companion object {
+        val DEFAULT = MathParams(Difficulty.MEDIUM, problemCount = 3)
+        val COUNT_RANGE = 1..50
+    }
+}
 
 @Serializable
 @SerialName("squat")
-data class SquatParams(val squatCount: Int) : MissionParams
+data class SquatParams(val squatCount: Int) : MissionParams {
+    companion object {
+        val DEFAULT = SquatParams(squatCount = 15)
+        val COUNT_RANGE = 1..50
+    }
+}
 
 object MissionParamsCodec {
     private val json = Json { encodeDefaults = true }

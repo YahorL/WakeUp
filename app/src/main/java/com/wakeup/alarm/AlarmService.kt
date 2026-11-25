@@ -1,5 +1,6 @@
 package com.wakeup.alarm
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -31,6 +32,8 @@ class AlarmService : Service() {
     private var player: MediaPlayer? = null
     private var vibrator: Vibrator? = null
     private var wakeLock: PowerManager.WakeLock? = null
+    private var ringingAlarmId = -1L
+    private var destroyed = false
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -49,8 +52,8 @@ class AlarmService : Service() {
             }
         }
 
-        val alarmId = intent?.getLongExtra(AlarmContract.EXTRA_ALARM_ID, -1L) ?: -1L
-        val snoozesUsed = intent?.getIntExtra(AlarmContract.EXTRA_SNOOZES_USED, 0) ?: 0
+        val alarmId = intent?.alarmId ?: -1L
+        val snoozesUsed = intent?.snoozesUsed ?: 0
         if (alarmId < 0) { stopSelf(); return START_NOT_STICKY }
 
         acquireWakeLock()
@@ -60,7 +63,12 @@ class AlarmService : Service() {
         } else {
             startForeground(AlarmContract.NOTIFICATION_ID, notification)
         }
-        scope.launch { ringFor(alarmId) }
+        // The same alarm can be delivered twice (see WakeUpCoordinator.restoreLostWakeUps);
+        // it is already ringing, so don't start a second ringtone on top of the first.
+        if (alarmId != ringingAlarmId) {
+            ringingAlarmId = alarmId
+            scope.launch { ringFor(alarmId) }
+        }
         return START_STICKY
     }
 
@@ -69,8 +77,9 @@ class AlarmService : Service() {
         val configured = alarm?.soundUri?.let { Uri.parse(it) }
         val default = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
         // Try the configured ringtone, then fall back to the default if it can't be played (spec §10).
-        player = buildPlayer(configured) ?: buildPlayer(default)
-        player?.apply {
+        val newPlayer = buildPlayer(configured) ?: buildPlayer(default)
+        if (!replacePlayer(newPlayer)) return
+        newPlayer?.apply {
             if (alarm?.gradualVolume == true) setVolume(0f, 0f)
             start()
         }
@@ -96,6 +105,29 @@ class AlarmService : Service() {
         }
     }
 
+    /**
+     * Makes [next] the service's one player, releasing any previous one. Returns false (and
+     * releases [next]) if the service was destroyed while it was being prepared, so a player can
+     * never outlive the service and ring with nothing left to stop it.
+     */
+    @Synchronized
+    private fun replacePlayer(next: MediaPlayer?): Boolean {
+        if (destroyed) {
+            next?.release()
+            return false
+        }
+        player?.release()
+        player = next
+        return true
+    }
+
+    @Synchronized
+    private fun releasePlayer() {
+        destroyed = true
+        player?.run { stop(); release() }
+        player = null
+    }
+
     private suspend fun rampVolume(seconds: Int) {
         val steps = 20
         for (i in 1..steps) {
@@ -116,9 +148,12 @@ class AlarmService : Service() {
         }
     }
 
+    /** Held with no timeout on purpose: the alarm rings until the missions are done. Released in onDestroy. */
+    @SuppressLint("WakelockTimeout")
     private fun acquireWakeLock() {
+        if (wakeLock?.isHeld == true) return
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
-        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "wakeup:alarm").apply { acquire(10 * 60 * 1000L) }
+        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "wakeup:alarm").apply { acquire() }
     }
 
     private fun buildNotification(alarmId: Long, snoozesUsed: Int): Notification {
@@ -129,13 +164,8 @@ class AlarmService : Service() {
                     .apply { setBypassDnd(true); setSound(null, null) }
             )
         }
-        val fullScreen = Intent(this, AlarmActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            putExtra(AlarmContract.EXTRA_ALARM_ID, alarmId)
-            putExtra(AlarmContract.EXTRA_SNOOZES_USED, snoozesUsed)
-        }
         val fsPending = PendingIntent.getActivity(
-            this, alarmId.toInt(), fullScreen,
+            this, alarmId.toInt(), AlarmActivity.launchIntent(this, alarmId, snoozesUsed),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         return NotificationCompat.Builder(this, AlarmContract.NOTIFICATION_CHANNEL_ID)
@@ -152,20 +182,21 @@ class AlarmService : Service() {
     }
 
     override fun onDestroy() {
-        player?.run { stop(); release() }; player = null
+        scope.cancel()
+        releasePlayer()
         vibrator?.cancel(); vibrator = null
         wakeLock?.takeIf { it.isHeld }?.release(); wakeLock = null
-        scope.cancel()
         super.onDestroy()
     }
 
     companion object {
         fun stop(context: Context) = context.stopService(Intent(context, AlarmService::class.java))
 
-        fun pauseSound(context: Context) =
-            context.startService(Intent(context, AlarmService::class.java).setAction(AlarmContract.ACTION_PAUSE_SOUND))
+        fun pauseSound(context: Context) = send(context, AlarmContract.ACTION_PAUSE_SOUND)
 
-        fun resumeSound(context: Context) =
-            context.startService(Intent(context, AlarmService::class.java).setAction(AlarmContract.ACTION_RESUME_SOUND))
+        fun resumeSound(context: Context) = send(context, AlarmContract.ACTION_RESUME_SOUND)
+
+        private fun send(context: Context, action: String) =
+            context.startService(Intent(context, AlarmService::class.java).setAction(action))
     }
 }

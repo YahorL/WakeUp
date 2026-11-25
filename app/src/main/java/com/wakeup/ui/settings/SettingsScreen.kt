@@ -1,157 +1,128 @@
 package com.wakeup.ui.settings
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wakeup.di.Graph
-import com.wakeup.ui.components.SectionLabel
+import com.wakeup.ui.components.AngledGradient
+import com.wakeup.ui.components.GlassIconButton
+import com.wakeup.ui.components.GlassRecipe
+import com.wakeup.ui.components.Label
+import com.wakeup.ui.components.MonoLabel
 import com.wakeup.ui.components.WakeIcon
-import com.wakeup.ui.components.WakeSwitch
-import com.wakeup.ui.components.noRippleClickable
-import com.wakeup.ui.theme.ACCENT_OPTIONS
-import com.wakeup.ui.theme.FontPairing
+import com.wakeup.ui.components.glass
+import com.wakeup.ui.components.surface
+import com.wakeup.ui.components.white
+import com.wakeup.ui.theme.OrbLayout
+import com.wakeup.ui.theme.Palette
 import com.wakeup.ui.theme.Screen
 import com.wakeup.ui.theme.Wake
+import com.wakeup.ui.theme.pressScale
+import com.wakeup.ui.theme.riseIn
 
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
     val store = Graph.settings
     val settings by store.state.collectAsStateWithLifecycle()
     val colors = Wake.colors
-    val fonts = Wake.fonts
 
-    Screen {
-        Column(Modifier.fillMaxSize().systemBarsPadding()) {
-            // Top bar
+    Screen(OrbLayout.EDITOR) {
+        Column(
+            Modifier.fillMaxSize().systemBarsPadding().verticalScroll(rememberScrollState())
+                .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 28.dp),
+        ) {
             Row(
-                Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, top = 14.dp, bottom = 6.dp),
+                Modifier.fillMaxWidth().riseIn(0),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
-                Box(
-                    Modifier.size(40.dp).clip(CircleShape).noRippleClickable(onClick = onBack),
-                    contentAlignment = Alignment.Center,
-                ) { WakeIcon(WakeIcon.ChevronLeft, size = 24.dp, color = colors.text) }
-                Text("Settings", color = colors.text, fontFamily = fonts.display, fontWeight = FontWeight.Medium, fontSize = 26.sp, letterSpacing = (-0.4).sp)
+                GlassIconButton(WakeIcon.Back, "Back to alarms", onBack)
+                Label("Settings", 18f, weight = FontWeight.Medium, tracking = -0.01f)
+                Spacer(Modifier.size(44.dp)) // keeps the title centered
             }
 
-            Column(
-                Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())
-                    .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 20.dp),
-            ) {
-                // Accent color
-                SectionLabel("Accent color")
-                Spacer(Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                    ACCENT_OPTIONS.forEachIndexed { i, option ->
-                        val selected = i == settings.accentIndex
-                        Box(
-                            Modifier.weight(1f).aspectRatio(1f).clip(CircleShape)
-                                .then(if (selected) Modifier.border(2.dp, colors.text, CircleShape) else Modifier)
-                                .padding(if (selected) 5.dp else 0.dp)
-                                .noRippleClickable { store.setAccentIndex(i) },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Box(Modifier.fillMaxSize().clip(CircleShape).background(option.color), contentAlignment = Alignment.Center) {
-                                if (selected) WakeIcon(WakeIcon.Check, size = 18.dp, color = Color.White, stroke = 2.6f)
-                            }
-                        }
-                    }
+            MonoLabel("Palette", Modifier.padding(top = 28.dp, bottom = 10.dp).riseIn(80))
+            Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Palette.entries.forEachIndexed { i, palette ->
+                    PaletteCard(
+                        palette, selected = palette == settings.palette,
+                        onSelect = { store.setPalette(palette) },
+                        modifier = Modifier.riseIn(140 + i * 70),
+                    )
                 }
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    "${ACCENT_OPTIONS[settings.accentIndex].name} · used across alarms, buttons & the wake-up challenge.",
-                    color = colors.textDim, fontFamily = fonts.ui, fontSize = 13.sp,
-                )
-
-                Spacer(Modifier.height(26.dp))
-
-                // Appearance
-                SectionLabel("Appearance")
-                Spacer(Modifier.height(12.dp))
-                Column(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(colors.card)
-                        .border(1.dp, colors.hair, RoundedCornerShape(18.dp)).padding(horizontal = 18.dp),
-                ) {
-                    // Dark mode
-                    Row(
-                        Modifier.fillMaxWidth().padding(vertical = 15.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            IconChip(if (settings.dark) WakeIcon.Clock else WakeIcon.Sun)
-                            Column {
-                                Text("Dark mode", color = colors.text, fontFamily = fonts.ui, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                                Text("Gentle on 6am eyes", color = colors.textDim, fontFamily = fonts.ui, fontSize = 12.5.sp)
-                            }
-                        }
-                        WakeSwitch(checked = settings.dark, onCheckedChange = { store.setDark(it) })
-                    }
-                    HorizontalHair()
-                    // Typeface
-                    Column(Modifier.fillMaxWidth().padding(vertical = 15.dp)) {
-                        Text("Typeface", color = colors.text, fontFamily = fonts.ui, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                        Spacer(Modifier.height(12.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.fillMaxWidth()) {
-                            FontPairing.entries.forEach { pairing ->
-                                val selected = pairing == settings.fontPairing
-                                Box(
-                                    Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(11.dp))
-                                        .background(if (selected) colors.selectedFill else Color.Transparent)
-                                        .then(if (selected) Modifier else Modifier.border(1.dp, colors.hair, RoundedCornerShape(11.dp)))
-                                        .noRippleClickable { store.setFontPairing(pairing) },
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Text(
-                                        pairing.label,
-                                        color = if (selected) colors.text else colors.textDim,
-                                        fontFamily = pairing.resolve().display,
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 13.5.sp,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Spacer(Modifier.height(26.dp))
-                SectionLabel("About")
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    "Squats are counted by your phone’s motion sensor. Pair them with math problems so you’re truly awake before the alarm goes quiet.",
-                    color = colors.textDim, fontFamily = fonts.ui, fontSize = 13.5.sp, lineHeight = 21.sp,
-                )
             }
+            Label(
+                "Colours the background glow, switches, buttons and the wake-up challenge.", 13f,
+                Modifier.padding(top = 12.dp, start = 4.dp, end = 4.dp), color = colors.textSecondary, lineHeight = 1.45f,
+            )
+
+            MonoLabel("About", Modifier.padding(top = 28.dp, bottom = 10.dp))
+            Label(
+                "Squats are counted by your phone’s motion sensor. Pair them with math problems so you’re truly awake before the alarm goes quiet.",
+                14f,
+                Modifier.fillMaxWidth().glass(GlassRecipe.CARD, RoundedCornerShape(24.dp)).padding(18.dp),
+                color = colors.textMuted, lineHeight = 1.5f,
+            )
         }
     }
 }
 
 @Composable
-private fun IconChip(icon: WakeIcon) {
-    val colors = Wake.colors
-    Box(
-        Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(colors.accentSoft),
-        contentAlignment = Alignment.Center,
-    ) { WakeIcon(icon, size = 18.dp, color = colors.accent, stroke = 1.9f) }
-}
-
-@Composable
-private fun HorizontalHair() {
-    Box(Modifier.fillMaxWidth().height(1.dp).background(Wake.colors.hair))
+private fun PaletteCard(palette: Palette, selected: Boolean, onSelect: () -> Unit, modifier: Modifier = Modifier) {
+    val source = remember { MutableInteractionSource() }
+    val shape = RoundedCornerShape(24.dp)
+    Row(
+        modifier.fillMaxWidth()
+            .pressScale(source)
+            .selectable(selected, source, indication = null, role = Role.RadioButton, onClick = onSelect)
+            .then(
+                if (selected) Modifier.surface(shape, AngledGradient(160f, 0f to white(0.16f), 1f to white(0.05f)), border = white(0.30f), highlight = white(0.2f))
+                else Modifier.glass(GlassRecipe.CARD, shape),
+            )
+            .padding(horizontal = 18.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        // The three glow colours, overlapping, then the accent gradient.
+        Box(Modifier.size(width = 60.dp, height = 28.dp)) {
+            listOf(palette.orb1, palette.orb2, palette.orb3).forEachIndexed { i, color ->
+                Box(Modifier.offset(x = (16 * i).dp).size(28.dp).background(color, CircleShape))
+            }
+        }
+        Label(palette.label, 17f, Modifier.weight(1f), weight = FontWeight.Medium, maxLines = 1)
+        Box(
+            Modifier.size(28.dp).then(
+                if (selected) Modifier.surface(CircleShape, AngledGradient(135f, 0f to palette.fillFrom, 1f to palette.fillTo), border = white(0.25f), highlight = white(0.3f))
+                else Modifier.surface(CircleShape, AngledGradient(135f, 0f to white(0.06f), 1f to white(0.06f)), border = white(0.14f)),
+            ),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (selected) WakeIcon(WakeIcon.Tick, size = 16.dp, stroke = 2.2f)
+        }
+    }
 }

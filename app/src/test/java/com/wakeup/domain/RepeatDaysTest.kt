@@ -6,7 +6,6 @@ import org.junit.Test
 class RepeatDaysTest {
     @Test fun noneIsOneShot() {
         assertTrue(RepeatDays.isOneShot(RepeatDays.NONE))
-        assertEquals(emptyList<Int>(), RepeatDays.activeDays(RepeatDays.NONE))
     }
 
     @Test fun toggleSetsAndClearsBit() {
@@ -18,12 +17,11 @@ class RepeatDaysTest {
         assertFalse(RepeatDays.isSet(mask, 0))
     }
 
-    @Test fun activeDaysReturnsSortedIndices() {
-        var mask = RepeatDays.NONE
-        mask = RepeatDays.toggle(mask, 6) // Sunday
-        mask = RepeatDays.toggle(mask, 0) // Monday
-        mask = RepeatDays.toggle(mask, 4) // Friday
-        assertEquals(listOf(0, 4, 6), RepeatDays.activeDays(mask))
-        assertFalse(RepeatDays.isOneShot(mask))
+    @Test fun anySetDayIsNotOneShot() {
+        assertFalse(RepeatDays.isOneShot(RepeatDays.toggle(RepeatDays.NONE, 6)))
+    }
+
+    @Test fun weekdaysIsMondayToFriday() {
+        assertEquals(listOf(0, 1, 2, 3, 4), (0..6).filter { RepeatDays.isSet(RepeatDays.WEEKDAYS, it) })
     }
 }

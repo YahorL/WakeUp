@@ -1,9 +1,10 @@
 package com.wakeup.data
 
 import com.wakeup.domain.Alarm
-import com.wakeup.domain.MissionConfig
+import com.wakeup.domain.MathParams
+import com.wakeup.domain.MissionParams
 import com.wakeup.domain.MissionParamsCodec
-import com.wakeup.domain.MissionType
+import com.wakeup.domain.SquatParams
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -16,12 +17,8 @@ class RoomAlarmRepository(private val dao: AlarmDao) : AlarmRepository {
 
     override suspend fun enabledAlarms(): List<Alarm> = dao.getEnabledAlarms().map { it.toDomain() }
 
-    override suspend fun upsert(alarm: Alarm): Long {
-        val id = dao.insertAlarm(alarm.toEntity()) // REPLACE handles updates by id
-        dao.deleteMissionsFor(id)
-        dao.insertMissions(alarm.missions.map { it.toEntity(id) })
-        return id
-    }
+    override suspend fun upsert(alarm: Alarm): Long =
+        dao.upsertWithMissions(alarm.toEntity(), alarm.missions.mapIndexed { order, params -> params.toEntity(order) })
 
     override suspend fun setEnabled(id: Long, enabled: Boolean) = dao.setEnabled(id, enabled)
 
@@ -33,9 +30,7 @@ private fun AlarmWithMissions.toDomain(): Alarm = Alarm(
     enabled = alarm.enabled, repeatDays = alarm.repeatDays, soundUri = alarm.soundUri,
     vibrate = alarm.vibrate, gradualVolume = alarm.gradualVolume, rampSeconds = alarm.rampSeconds,
     snoozeEnabled = alarm.snoozeEnabled, snoozeMinutes = alarm.snoozeMinutes, maxSnoozes = alarm.maxSnoozes,
-    missions = missions.sortedBy { it.order }.map {
-        MissionConfig(it.id, it.order, MissionType.valueOf(it.type), MissionParamsCodec.decode(it.params))
-    },
+    missions = missions.sortedBy { it.order }.map { MissionParamsCodec.decode(it.params) },
 )
 
 private fun Alarm.toEntity(): AlarmEntity = AlarmEntity(
@@ -44,6 +39,13 @@ private fun Alarm.toEntity(): AlarmEntity = AlarmEntity(
     snoozeEnabled = snoozeEnabled, snoozeMinutes = snoozeMinutes, maxSnoozes = maxSnoozes,
 )
 
-private fun MissionConfig.toEntity(alarmId: Long): MissionConfigEntity = MissionConfigEntity(
-    id = 0, alarmId = alarmId, order = order, type = type.name, params = MissionParamsCodec.encode(params),
+/** The alarm id is filled in by [AlarmDao.upsertWithMissions] once the alarm row exists. */
+private fun MissionParams.toEntity(order: Int): MissionConfigEntity = MissionConfigEntity(
+    alarmId = 0,
+    order = order,
+    type = when (this) {
+        is MathParams -> "MATH"
+        is SquatParams -> "SQUAT"
+    },
+    params = MissionParamsCodec.encode(this),
 )

@@ -1,94 +1,107 @@
 package com.wakeup.ui.firing
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.wakeup.domain.Alarm
 import com.wakeup.domain.SquatParams
 import com.wakeup.mission.AccelerometerSquatDetector
-import com.wakeup.mission.SquatDetector
-import com.wakeup.ui.components.WakeIcon
+import com.wakeup.ui.components.Label
+import com.wakeup.ui.components.ProgressRing
+import com.wakeup.ui.components.bump
+import com.wakeup.ui.squatsText
 import com.wakeup.ui.theme.Wake
+import com.wakeup.ui.theme.riseIn
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flowOf
 
+/**
+ * The squat counter. Reps come only from the motion sensor — nothing on this screen counts a rep
+ * when touched. At the target the sensor is released; if another mission follows, the user taps
+ * "Continue" (the alarm starts nagging again if they stall), otherwise the flow finishes itself.
+ */
 @Composable
 fun SquatMissionContent(
+    alarm: Alarm,
     params: SquatParams,
+    is24h: Boolean,
+    isLast: Boolean,
     onComplete: () -> Unit,
-    onEngaged: () -> Unit = {},
-    detectorOverride: SquatDetector? = null, // for previews/tests
+    onEngaged: () -> Unit,
 ) {
     val colors = Wake.colors
-    val fonts = Wake.fonts
     val context = LocalContext.current
-    val detector = remember(detectorOverride) { detectorOverride ?: AccelerometerSquatDetector(context) }
-    // Remember the flow itself, not just the detector: calling repCounts() on every recomposition
-    // would restart the sensor flow and reset the rep count to 0 each time.
-    val repFlow = remember(detector) { detector.repCounts() }
-    val reps by repFlow.collectAsStateWithLifecycle(initialValue = 0)
+    val view = LocalView.current
+    val target = params.squatCount
+    var finished by remember { mutableStateOf(false) }
+
+    // Remember the flow itself: calling repCounts() on every recomposition would restart the
+    // sensor flow and reset the rep count to 0 each time. Once finished, stop listening.
+    val repFlow = remember(finished) {
+        if (finished) flowOf(target) else AccelerometerSquatDetector(context).repCounts()
+    }
+    val sensed by repFlow.collectAsStateWithLifecycle(initialValue = 0)
+    val reps = if (finished) target else sensed.coerceAtMost(target)
 
     LaunchedEffect(reps) {
-        if (reps > 0) onEngaged()
-        if (reps >= params.squatCount) onComplete()
+        if (finished || reps <= 0) return@LaunchedEffect
+        onEngaged()
+        if (reps >= target) {
+            finished = true
+            view.success()
+        } else {
+            view.tick()
+        }
+    }
+    LaunchedEffect(finished) {
+        if (finished && isLast) {
+            delay(900) // let the completion burst play
+            onComplete()
+        }
     }
 
-    val total = params.squatCount
-    val remaining = (total - reps).coerceAtLeast(0)
-    val fillFraction by animateFloatAsState((reps.toFloat() / total).coerceIn(0f, 1f), label = "padFill")
-
     Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-        PhaseHeader(kicker = "SQUATS", step = "$reps / $total")
-
-        Column(Modifier.weight(1f).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Text(
-                "$reps",
-                color = colors.text, fontFamily = fonts.num, fontWeight = fonts.numWeight,
-                fontSize = 132.sp, letterSpacing = (-4).sp, lineHeight = 112.sp,
-                style = TextStyle(fontFeatureSettings = "tnum"),
-            )
-            Spacer(Modifier.height(8.dp))
-            Text("of $total squats", color = colors.textDim, fontFamily = fonts.ui, fontSize = 15.sp)
-        }
-
-        // Segmented progress: one segment per required rep.
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            repeat(total) { i ->
-                Box(
-                    Modifier.weight(1f).height(5.dp).clip(RoundedCornerShape(3.dp))
-                        .background(if (i < reps) colors.accent else colors.hair),
+        RingHeader(alarm, is24h)
+        DiscArea(Modifier.weight(1f), reserve = 40) { size ->
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                ProgressRing(
+                    count = reps, target = target, size = size,
+                    modifier = Modifier.riseIn(200).semantics(mergeDescendants = true) {
+                        contentDescription = if (finished) "Squats complete" else "$reps of ${squatsText(target)}"
+                    },
+                ) {
+                    val scale = size.value / 272f
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Label(
+                            "$reps", 96f * scale, Modifier.bump(reps),
+                            weight = FontWeight.ExtraLight, tracking = -0.05f, lineHeight = 1f, tabular = true, fixed = true,
+                        )
+                        Label("of ${squatsText(target)}", 15f, color = colors.textMuted, maxLines = 1, fixed = true)
+                    }
+                }
+                Label(
+                    if (finished) "Nice — squats done" else "Hold your phone — the motion sensor is counting",
+                    14f, color = colors.textSecondary, align = TextAlign.Center, maxLines = 2,
                 )
             }
         }
-        Spacer(Modifier.height(20.dp))
-
-        // Status pad — fed by the accelerometer (no tapping). Fills as reps accrue.
-        Box(
-            Modifier.fillMaxWidth().height(92.dp).clip(RoundedCornerShape(20.dp))
-                .background(colors.card).border(1.5.dp, colors.hairStrong, RoundedCornerShape(20.dp)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Box(Modifier.fillMaxWidth().fillMaxHeight(fillFraction).align(Alignment.BottomCenter).background(colors.accentSoft))
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    WakeIcon(WakeIcon.ArrowDown, size = 20.dp, color = colors.text, stroke = 2.2f)
-                    Text(
-                        if (remaining > 0) "Squat to count — $remaining to go" else "Nice — done!",
-                        color = colors.text, fontFamily = fonts.ui, fontWeight = FontWeight.SemiBold, fontSize = 15.sp,
-                    )
-                }
-                Text("Motion sensor counts each rep", color = colors.textMute, fontFamily = fonts.ui, fontSize = 12.sp)
-            }
-        }
+        StepsPanel(alarm, squatReps = reps, onContinue = if (isLast) null else onComplete, modifier = Modifier.padding(top = 8.dp).riseIn(260))
     }
 }

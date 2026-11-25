@@ -1,29 +1,31 @@
 package com.wakeup.alarm
 
+import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.getValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import com.wakeup.di.Graph
 import com.wakeup.domain.Alarm
-import com.wakeup.domain.RepeatDays
+import com.wakeup.ui.AppTheme
 import com.wakeup.ui.firing.MissionHost
-import com.wakeup.ui.theme.WakeUpTheme
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/** The full-screen wake-up screen: ring → missions → "Alarm off". It can only be left by finishing. */
 class AlarmActivity : ComponentActivity() {
     private var alarmId: Long = -1L
     private var snoozesUsed: Int = 0
     private var completed = false
     private var soundPaused = false
+    private var wakeUpRecorded = false
+    private var closeRequested = false
     private var resumeJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,29 +36,35 @@ class AlarmActivity : ComponentActivity() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() { /* swallow: missions must be completed */ }
         })
-        alarmId = intent.getLongExtra(AlarmContract.EXTRA_ALARM_ID, -1L)
-        snoozesUsed = intent.getIntExtra(AlarmContract.EXTRA_SNOOZES_USED, 0)
+        alarmId = intent.alarmId
+        snoozesUsed = intent.snoozesUsed
 
         lifecycleScope.launch {
             val alarm = Graph.repository.getAlarm(alarmId) ?: Alarm(hour = 0, minute = 0)
             setContent {
-                val settings by Graph.settings.state.collectAsStateWithLifecycle()
-                val view = androidx.compose.ui.platform.LocalView.current
-                androidx.compose.runtime.SideEffect {
-                    val controller = androidx.core.view.WindowCompat.getInsetsController(window, view)
-                    controller.isAppearanceLightStatusBars = !settings.dark
-                    controller.isAppearanceLightNavigationBars = !settings.dark
-                }
-                WakeUpTheme(accent = settings.accent, dark = settings.dark, fontPairing = settings.fontPairing) {
+                AppTheme {
                     MissionHost(
                         alarm = alarm,
                         snoozesUsed = snoozesUsed,
-                        onAllComplete = { dismiss(alarm) },
+                        onAllComplete = { dismiss() },
                         onSnooze = { snooze() },
                         onEngaged = { onMissionEngaged() },
+                        onClose = { close() },
                     )
                 }
             }
+        }
+    }
+
+    /** A fire that arrives while this screen is still open (it is `singleInstance`). */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // The same alarm, still unfinished, needs nothing. Anything else (another alarm, or this
+        // one ringing again while "Alarm off" lingers) restarts the screen for the new fire.
+        if (completed || intent.alarmId != alarmId) {
+            completed = true // this instance is being replaced; don't let onStop relaunch it
+            setIntent(intent)
+            recreate()
         }
     }
 
@@ -64,11 +72,7 @@ class AlarmActivity : ComponentActivity() {
         super.onStop()
         if (!completed && !isFinishing) {
             // Brought to background without completing — relaunch over the lock screen.
-            startActivity(Intent(this, AlarmActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                putExtra(AlarmContract.EXTRA_ALARM_ID, alarmId)
-                putExtra(AlarmContract.EXTRA_SNOOZES_USED, snoozesUsed)
-            })
+            startActivity(relaunchIntent(this, alarmId, snoozesUsed))
         }
     }
 
@@ -90,49 +94,64 @@ class AlarmActivity : ComponentActivity() {
         }
     }
 
-    private fun dismiss(alarm: Alarm) {
+    private fun dismiss() {
         completed = true
         resumeJob?.cancel()
         AlarmService.stop(this) // silence immediately as the "Alarm off" screen appears
-        Graph.ringState.clear() // ring cycle is over — disabling in-app may cancel again normally
+        Graph.ringState.finish(alarmId) // synchronously, so an alarm firing right now can ring
         lifecycleScope.launch {
-            // Re-read enabled state: the user may have disabled this alarm mid-cycle (which keeps
-            // the current snooze ringing but should NOT re-arm a future occurrence).
-            val current = Graph.repository.getAlarm(alarm.id)
-            if (current == null || RepeatDays.isOneShot(current.repeatDays) || !current.enabled) {
-                Graph.repository.setEnabled(alarm.id, false)
-                Graph.scheduler.cancel(alarm.id)
-            } else {
-                Graph.scheduler.schedule(current)
-            }
-            delay(2200) // let the "Alarm off" confirmation linger before closing
+            Graph.wakeUps.complete(alarmId)
+            wakeUpRecorded = true
+            if (!closeRequested) delay(5000) // let the "Alarm off" confirmation linger
             finish()
         }
+    }
+
+    /**
+     * The "Done" button. Closing ends [lifecycleScope], so if the wake-up has not been recorded
+     * yet (which re-arms or disables the alarm) the close waits for it instead of cutting it off.
+     */
+    private fun close() {
+        closeRequested = true
+        if (wakeUpRecorded) finish()
     }
 
     private fun snooze() {
         completed = true
         resumeJob?.cancel()
-        val snoozeIntent = Intent(this, AlarmReceiver::class.java).apply {
-            action = AlarmContract.ACTION_SNOOZE
-            putExtra(AlarmContract.EXTRA_ALARM_ID, alarmId)
-            putExtra(AlarmContract.EXTRA_SNOOZES_USED, snoozesUsed)
-        }
-        sendBroadcast(snoozeIntent)
+        Graph.ringState.stopRinging(alarmId) // synchronously, so an alarm firing right now can ring
+        sendBroadcast(
+            Intent(this, AlarmReceiver::class.java)
+                .setAction(AlarmContract.ACTION_SNOOZE)
+                .putAlarmExtras(alarmId, snoozesUsed),
+        )
         AlarmService.stop(this)
         finish()
     }
 
     private fun showWhenLockedAndTurnScreenOn() {
+        // Squats involve no touches, so without this the screen would time out mid-mission.
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            setShowWhenLocked(true); setTurnScreenOn(true)
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
         } else {
             @Suppress("DEPRECATION")
             window.addFlags(
-                android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                    android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-                    android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
             )
         }
+    }
+
+    companion object {
+        /** Opens the wake-up screen for [alarmId] from outside an activity. */
+        fun launchIntent(context: Context, alarmId: Long, snoozesUsed: Int): Intent =
+            Intent(context, AlarmActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                .putAlarmExtras(alarmId, snoozesUsed)
+
+        /** Like [launchIntent], but brings an already-open wake-up screen back to the front. */
+        fun relaunchIntent(context: Context, alarmId: Long, snoozesUsed: Int): Intent =
+            launchIntent(context, alarmId, snoozesUsed).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
     }
 }

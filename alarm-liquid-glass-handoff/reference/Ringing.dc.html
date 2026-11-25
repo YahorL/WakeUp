@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Alarm ringing — squats</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#08080C}
+a{color:#fff}a:hover{color:#fff}
+@keyframes ripA{0%{box-shadow:0 0 0 0 currentColor;opacity:.7}100%{box-shadow:0 0 0 34px currentColor;opacity:0}}
+@keyframes ripB{0%{box-shadow:0 0 0 0 currentColor;opacity:.7}100%{box-shadow:0 0 0 34px currentColor;opacity:0}}
+@keyframes discA{0%{transform:scale(1)}35%{transform:scale(.95)}100%{transform:scale(1)}}
+@keyframes discB{0%{transform:scale(1)}35%{transform:scale(.95)}100%{transform:scale(1)}}
+@keyframes alive{0%,100%{box-shadow:inset 0 1px 0 rgba(255,255,255,0.25),inset 0 -20px 40px -20px rgba(0,0,0,0.5),0 40px 80px -30px rgba(0,0,0,0.8),0 0 0 0 transparent}50%{box-shadow:inset 0 1px 0 rgba(255,255,255,0.25),inset 0 -20px 40px -20px rgba(0,0,0,0.5),0 40px 80px -30px rgba(0,0,0,0.8),0 0 60px -6px currentColor}}
+@keyframes burst{0%{box-shadow:0 0 0 0 currentColor;opacity:.9}100%{box-shadow:0 0 0 80px currentColor;opacity:0}}
+@keyframes ringDone{0%{transform:scale(1)}40%{transform:scale(1.08)}100%{transform:scale(1)}}
+@keyframes riseIn{0%{opacity:0;transform:translateY(16px) scale(.98)}100%{opacity:1;transform:none}}
+@keyframes breathe{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.6);opacity:.55}}
+@keyframes pressBumpA{0%{transform:translateY(8px) scale(.9);opacity:.2}100%{transform:none;opacity:1}}
+@keyframes pressBumpB{0%{transform:translateY(8px) scale(.9);opacity:.2}100%{transform:none;opacity:1}}
+button:active,a:active{transform:scale(.96)!important}
+button,a{transition-property:transform,background,box-shadow,color,opacity;transition-duration:.15s}
+@media (prefers-reduced-motion: reduce){*{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important}}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #08080C; font-family: 'Outfit', system-ui, sans-serif; color: #FFFFFF; box-sizing: border-box">
+
+  <div aria-hidden="true" style="position: absolute; width: 520px; height: 520px; top: 180px; left: -65px; border-radius: 50%; background: radial-gradient(circle, {{o2}} 0%, transparent 62%); opacity: {{glow}}; filter: blur(16px)"></div>
+  <div aria-hidden="true" style="position: absolute; width: 420px; height: 420px; top: -200px; right: -160px; border-radius: 50%; background: radial-gradient(circle, {{o1}} 0%, transparent 66%); opacity: {{glow}}; filter: blur(10px)"></div>
+  <div aria-hidden="true" style="position: absolute; width: 440px; height: 440px; bottom: -240px; left: -140px; border-radius: 50%; background: radial-gradient(circle, {{o3}} 0%, transparent 66%); opacity: {{glowLow}}; filter: blur(14px)"></div>
+  <sc-if value="{{texGrain}}" hint-placeholder-val="{{ true }}">
+    <svg aria-hidden="true" width="100%" height="100%" style="position: absolute; inset: 0; opacity: 0.22; mix-blend-mode: overlay; pointer-events: none"><filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"></feTurbulence><feColorMatrix type="saturate" values="0"></feColorMatrix></filter><rect width="100%" height="100%" filter="url(#grain)"></rect></svg>
+  </sc-if>
+  <sc-if value="{{texLines}}" hint-placeholder-val="{{ false }}">
+    <div aria-hidden="true" style="position: absolute; inset: 0; background-image: repeating-linear-gradient(115deg, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 14px); -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 60%); mask-image: linear-gradient(180deg, #000 0%, transparent 60%)"></div>
+  </sc-if>
+
+  <div style="position: relative; display: flex; flex-direction: column; align-items: center; padding: 60px 20px 30px; box-sizing: border-box; height: 100%">
+
+    <span style="animation: riseIn .6s cubic-bezier(.2,.8,.2,1) 0ms backwards; display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 999px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px)">
+      <span aria-hidden="true" style="width: 6px; height: 6px; border-radius: 50%; background: {{o2}}; box-shadow: 0 0 10px {{o2}}; animation: breathe 2.4s ease-in-out infinite"></span>
+      Wake up
+    </span>
+    <div style="animation: riseIn .7s cubic-bezier(.2,.8,.2,1) 80ms backwards; margin-top: 14px; font-size: 104px; font-weight: 200; letter-spacing: -0.05em; line-height: 0.95; font-variant-numeric: tabular-nums">06:30</div>
+    <div style="animation: riseIn .6s cubic-bezier(.2,.8,.2,1) 140ms backwards; margin-top: 8px; font-size: 15px; color: rgba(255,255,255,0.62)">Wednesday, November 25</div>
+
+    <button type="button" aria-label="{{ringAria}}" onClick="{{addRep}}" style="margin-top: 34px; position: relative; width: 272px; height: 272px; border-radius: 50%; padding: 0; cursor: pointer; color: #fff; font-family: inherit; background: radial-gradient(circle at 50% 30%, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.04) 55%, rgba(255,255,255,0.02) 100%); border: 1px solid rgba(255,255,255,0.16); backdrop-filter: blur(30px) saturate(170%); -webkit-backdrop-filter: blur(30px) saturate(170%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -20px 40px -20px rgba(0,0,0,0.5), 0 40px 80px -30px rgba(0,0,0,0.8); {{discStyle}}">
+      <span aria-hidden="true" style="position: absolute; inset: -1px; border-radius: 50%; pointer-events: none; {{ripStyle}}"></span>
+      <svg aria-hidden="true" width="272" height="272" viewBox="0 0 272 272" style="position: absolute; inset: -1px; transform: rotate(-90deg)">
+        <defs>
+          <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="{{o1}}"></stop>
+            <stop offset="100%" stop-color="{{o2}}"></stop>
+          </linearGradient>
+        </defs>
+        <circle cx="136" cy="136" r="104" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="1.5" stroke-dasharray="2 7"></circle>
+        <circle cx="136" cy="136" r="122" fill="none" stroke="rgba(255,255,255,0.10)" stroke-width="10"></circle>
+        <circle cx="136" cy="136" r="122" fill="none" stroke="url(#ringGrad)" stroke-width="10" stroke-linecap="round" stroke-dasharray="766.5" stroke-dashoffset="{{dashOffset}}" style="transition: stroke-dashoffset .4s ease; filter: drop-shadow(0 0 8px {{o2}})"></circle>
+      </svg>
+      <span style="position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; color: #FFFFFF">
+        <span style="font-size: 96px; font-weight: 200; letter-spacing: -0.05em; line-height: 1; font-variant-numeric: tabular-nums; display: inline-block; {{numAnim}}">{{reps}}</span>
+        <span style="font-size: 15px; color: rgba(255,255,255,0.72)">of {{target}} squats</span>
+      </span>
+    </button>
+
+    <p style="margin: 18px 0 0; font-size: 14px; color: rgba(255,255,255,0.62); text-align: center">Hold your phone — the motion sensor is counting</p>
+
+    <div style="animation: riseIn .6s cubic-bezier(.2,.8,.2,1) 260ms backwards; margin-top: auto; width: 100%; display: flex; flex-direction: column; gap: 8px; padding: 8px; box-sizing: border-box; border-radius: 28px; background: linear-gradient(160deg, rgba(255,255,255,0.12), rgba(255,255,255,0.03)); border: 1px solid rgba(255,255,255,0.14); backdrop-filter: blur(26px) saturate(150%); -webkit-backdrop-filter: blur(26px) saturate(150%); box-shadow: inset 0 1px 0 rgba(255,255,255,0.18)">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 20px; background: rgba(255,255,255,0.07)">
+        <span aria-hidden="true" style="width: 40px; height: 40px; border-radius: 14px; display: flex; align-items: center; justify-content: center; background: {{fill}}; flex-shrink: 0">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M6 11l6 6 6-6M5 20h14"></path></svg>
+        </span>
+        <span style="flex: 1; display: flex; flex-direction: column; gap: 6px">
+          <span style="display: flex; justify-content: space-between; font-size: 15px; font-weight: 500"><span>Squats</span><span style="font-variant-numeric: tabular-nums">{{reps}} / {{target}}</span></span>
+          <span aria-hidden="true" style="height: 4px; border-radius: 999px; background: rgba(255,255,255,0.14); overflow: hidden; display: block"><span style="display: block; height: 100%; border-radius: 999px; background: {{fill}}; transition: width .4s; width: {{pct}}%"></span></span>
+        </span>
+      </div>
+      <sc-if value="{{notDone}}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 20px; color: rgba(255,255,255,0.62)">
+          <span aria-hidden="true" style="width: 40px; height: 40px; border-radius: 14px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.08); flex-shrink: 0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+          </span>
+          <span style="flex: 1; display: flex; flex-direction: column; gap: 1px">
+            <span style="font-size: 15px; font-weight: 500">Math problems</span>
+            <span style="font-size: 12px">3 medium · unlocks after squats</span>
+          </span>
+        </div>
+      </sc-if>
+      <sc-if value="{{done}}" hint-placeholder-val="{{ false }}">
+        <a href="Math.dc.html" style="animation: riseIn .55s cubic-bezier(.3,1.3,.5,1) .25s backwards; height: 60px; border-radius: 20px; display: flex; align-items: center; justify-content: center; gap: 10px; text-decoration: none; color: #0B0B10; font-size: 17px; font-weight: 500; background: rgba(255,255,255,0.94); box-shadow: 0 14px 30px -14px {{o2}}">
+          Continue to math
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+        </a>
+      </sc-if>
+    </div>
+    <p style="margin: 10px 0 0; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.5)">Prototype · tap the ring to count a rep</p>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"palette":{"editor":"enum","options":["aurora","ember","lagoon"],"default":"aurora","section":"Look"},"glow":{"editor":"range","min":0.2,"max":1,"step":0.05,"default":0.85,"section":"Look"},"texture":{"editor":"enum","options":["grain","lines","none"],"default":"grain","section":"Look"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { reps: 7, taps: 0 };
+  }
+  renderVals() {
+    const P = {
+      aurora: { o: ['#7B5CFF', '#4C8DFF', '#FF9F43'], f: ['#6D28D9', '#2563EB'] },
+      ember: { o: ['#FF6A2B', '#FFB020', '#8A4DFF'], f: ['#C2410C', '#B45309'] },
+      lagoon: { o: ['#2EE6C5', '#3D7BFF', '#9B5CFF'], f: ['#0F766E', '#1D4ED8'] }
+    };
+    const p = P[this.props.palette ?? 'aurora'] || P.aurora;
+    const glow = this.props.glow ?? 0.85;
+    const fill = 'linear-gradient(135deg, ' + p.f[0] + ' 0%, ' + p.f[1] + ' 100%)';
+    const target = 15;
+    const reps = this.state.reps;
+    const C = 766.5;
+    const done = reps >= target;
+    return {
+      o1: p.o[0], o2: p.o[1], o3: p.o[2], fill: fill,
+      texGrain: (this.props.texture ?? 'grain') === 'grain', texLines: (this.props.texture ?? 'grain') === 'lines',
+      glow: glow, glowLow: Math.max(0, glow - 0.25),
+      reps: reps, target: target,
+      pct: Math.round((reps / target) * 100),
+      dashOffset: (C * (1 - reps / target)).toFixed(1),
+      done: done, notDone: !done,
+      ringAria: done ? 'Squats complete' : 'Count a squat rep (' + reps + ' of ' + target + ')',
+      discStyle: 'color: ' + p.o[1] + '; ' + (done
+        ? 'animation: ringDone .6s cubic-bezier(.3,1.3,.5,1) both'
+        : this.state.taps ? 'animation: ' + (this.state.taps % 2 ? 'discA' : 'discB') + ' .35s cubic-bezier(.3,1.3,.5,1), alive 2.6s ease-in-out .35s infinite' : 'animation: riseIn .8s cubic-bezier(.2,.8,.2,1) .2s backwards, alive 2.6s ease-in-out 1s infinite'),
+      ripStyle: 'color: ' + p.o[1] + '; ' + (done && this.state.taps ? 'animation: burst .9s ease-out both' : this.state.taps ? 'animation: ' + (this.state.taps % 2 ? 'ripA' : 'ripB') + ' .7s ease-out both' : 'opacity: 0'),
+      numAnim: this.state.taps ? 'animation: ' + (this.state.taps % 2 ? 'pressBumpA' : 'pressBumpB') + ' .35s cubic-bezier(.3,1.3,.5,1) both' : '',
+      addRep: () => { if (reps < target) this.setState({ reps: reps + 1, taps: this.state.taps + 1 }); }
+    };
+  }
+}
+</script>
+</body>
+</html>

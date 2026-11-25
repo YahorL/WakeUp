@@ -29,31 +29,22 @@ class RoomAlarmRepositoryTest {
     @Test fun upsertThenReadPreservesMissionsAndOrder() = runBlocking {
         val alarm = Alarm(
             hour = 7, minute = 30, label = "Gym", repeatDays = RepeatDays.toggle(RepeatDays.NONE, 0),
-            missions = listOf(
-                MissionConfig(order = 0, type = MissionType.MATH, params = MathParams(Difficulty.HARD, 2)),
-                MissionConfig(order = 1, type = MissionType.SQUAT, params = SquatParams(15)),
-            ),
+            missions = listOf(MathParams(Difficulty.HARD, 2), SquatParams(15)),
         )
         val id = repo.upsert(alarm)
         val loaded = repo.getAlarm(id)!!
 
         assertEquals(7, loaded.hour)
         assertEquals("Gym", loaded.label)
-        assertEquals(2, loaded.missions.size)
-        assertEquals(MissionType.MATH, loaded.missions[0].type)
-        assertEquals(MathParams(Difficulty.HARD, 2), loaded.missions[0].params)
-        assertEquals(SquatParams(15), loaded.missions[1].params)
+        assertEquals(listOf(MathParams(Difficulty.HARD, 2), SquatParams(15)), loaded.missions)
     }
 
     @Test fun upsertReplacesMissions() = runBlocking {
-        val id = repo.upsert(Alarm(hour = 6, minute = 0,
-            missions = listOf(MissionConfig(order = 0, type = MissionType.SQUAT, params = SquatParams(5)))))
-        val updated = repo.getAlarm(id)!!.copy(
-            missions = listOf(MissionConfig(order = 0, type = MissionType.MATH, params = MathParams(Difficulty.EASY, 1))))
+        val id = repo.upsert(Alarm(hour = 6, minute = 0, missions = listOf(SquatParams(5))))
+        val updated = repo.getAlarm(id)!!.copy(missions = listOf(MathParams(Difficulty.EASY, 1)))
         repo.upsert(updated)
         val loaded = repo.getAlarm(id)!!
-        assertEquals(1, loaded.missions.size)
-        assertEquals(MissionType.MATH, loaded.missions[0].type)
+        assertEquals(listOf(MathParams(Difficulty.EASY, 1)), loaded.missions)
     }
 
     @Test fun observeAndEnabledFilter() = runBlocking {
