@@ -43,6 +43,8 @@ fun AlarmEditScreen(
     viewModel: AlarmEditViewModel = viewModel(factory = AlarmEditViewModel.factory(alarmId)),
 ) {
     val draft by viewModel.draft.collectAsStateWithLifecycle()
+    // Ringing or snoozed: changes can't be saved and the alarm can't be deleted.
+    val locked by viewModel.locked.collectAsStateWithLifecycle()
     val colors = Wake.colors
     val fonts = Wake.fonts
     var showTimePicker by remember { mutableStateOf(false) }
@@ -57,7 +59,11 @@ fun AlarmEditScreen(
             ) {
                 WakeIconButton(WakeIcon.ChevronLeft, onClick = onDone)
                 Text(if (viewModel.isNew) "New alarm" else "Edit alarm", color = colors.text, fontFamily = fonts.ui, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                WakeIconButton(WakeIcon.Trash, onClick = { viewModel.delete(onDone) }, color = colors.textDim, size = 20.dp, stroke = 1.8f)
+                if (locked) {
+                    Spacer(Modifier.size(40.dp)) // keeps the title centered
+                } else {
+                    WakeIconButton(WakeIcon.Trash, onClick = { viewModel.delete(onDone) }, color = colors.textDim, size = 20.dp, stroke = 1.8f)
+                }
             }
 
             Column(
@@ -96,7 +102,16 @@ fun AlarmEditScreen(
             // Save footer
             Box(Modifier.fillMaxWidth().background(colors.bg).padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 16.dp)) {
                 Hairline(Modifier.align(Alignment.TopCenter))
-                AccentButton("Save alarm", onClick = { viewModel.save { onDone() } })
+                if (locked) {
+                    Text(
+                        "This alarm is ringing or snoozed. Finish the wake-up to change it.",
+                        color = colors.textDim, fontFamily = fonts.ui, fontSize = 13.5.sp, lineHeight = 20.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                    )
+                } else {
+                    AccentButton("Save alarm", onClick = { viewModel.save { onDone() } })
+                }
             }
         }
     }

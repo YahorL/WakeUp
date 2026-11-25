@@ -29,11 +29,15 @@ The wake-up flow — ring → squats → math → done:
 - **Standard alarm features** — multiple alarms, repeat days, labels, looping
   ringtone with gradual volume ramp, vibration.
 - **Reliable ringing** — exact alarms via `AlarmManager.setAlarmClock`, a foreground
-  service for playback, a full-screen-intent notification, boot re-arming, and
-  wake-lock handling.
+  service for playback, a full-screen-intent notification, and a wake lock held
+  until the missions are done. Alarms are re-armed after a reboot, app update, or
+  clock/timezone change.
 - **Escape-proofing** — the wake-up screen shows over the lock screen and takes over
-  even when the phone is unlocked/in use; Back/Home/Recents can't dismiss it; and
-  disabling a ringing alarm in the app keeps its snooze (it still rings).
+  even when the phone is unlocked/in use; Back/Home/Recents can't dismiss it. An
+  alarm that is ringing or snoozed is locked: it can't be edited or deleted, and
+  switching it off only stops future days. A wake-up interrupted by a reboot, app
+  update or process death rings again. Only one wake-up runs at a time — an alarm
+  that fires while another is ringing counts as done with it.
 - **Quality-of-life** — the ringtone goes quiet for ~10s while you're actively doing
   a mission, then nags back if you stall. Snooze (with a configurable limit).
 - **Appearance** — selectable accent color (5 options), dark/light mode, and three
@@ -51,8 +55,8 @@ The wake-up flow — ring → squats → math → done:
 
 ```
 app/src/main/java/com/wakeup/
-  alarm/      AlarmReceiver, AlarmService, AlarmActivity, scheduling glue, RingState
-  schedule/   AlarmManagerScheduler, NextTrigger, SnoozePolicy
+  alarm/      AlarmReceiver, AlarmService, AlarmActivity, RingState, WakeUpCoordinator
+  schedule/   AlarmManagerScheduler, ActiveAlarmGuard, NextTrigger, SnoozePolicy
   data/       Room entities/DAO + AlarmRepository
   domain/     Alarm / MissionParams models, RepeatDays
   mission/    SquatDetectorCore (+ AccelerometerSquatDetector), MathProblemGenerator

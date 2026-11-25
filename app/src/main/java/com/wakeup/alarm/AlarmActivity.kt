@@ -12,7 +12,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
 import com.wakeup.di.Graph
 import com.wakeup.domain.Alarm
-import com.wakeup.domain.RepeatDays
 import com.wakeup.ui.AppTheme
 import com.wakeup.ui.firing.MissionHost
 import kotlinx.coroutines.Job
@@ -45,12 +44,24 @@ class AlarmActivity : ComponentActivity() {
                     MissionHost(
                         alarm = alarm,
                         snoozesUsed = snoozesUsed,
-                        onAllComplete = { dismiss(alarm) },
+                        onAllComplete = { dismiss() },
                         onSnooze = { snooze() },
                         onEngaged = { onMissionEngaged() },
                     )
                 }
             }
+        }
+    }
+
+    /** A fire that arrives while this screen is still open (it is `singleInstance`). */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // The same alarm, still unfinished, needs nothing. Anything else (another alarm, or this
+        // one ringing again while "Alarm off" lingers) restarts the screen for the new fire.
+        if (completed || intent.alarmId != alarmId) {
+            completed = true // this instance is being replaced; don't let onStop relaunch it
+            setIntent(intent)
+            recreate()
         }
     }
 
@@ -80,21 +91,13 @@ class AlarmActivity : ComponentActivity() {
         }
     }
 
-    private fun dismiss(alarm: Alarm) {
+    private fun dismiss() {
         completed = true
         resumeJob?.cancel()
         AlarmService.stop(this) // silence immediately as the "Alarm off" screen appears
-        Graph.ringState.clear() // ring cycle is over — disabling in-app may cancel again normally
+        Graph.ringState.finish(alarmId) // synchronously, so an alarm firing right now can ring
         lifecycleScope.launch {
-            // Re-read enabled state: the user may have disabled this alarm mid-cycle (which keeps
-            // the current snooze ringing but should NOT re-arm a future occurrence).
-            val current = Graph.repository.getAlarm(alarm.id)
-            if (current == null || RepeatDays.isOneShot(current.repeatDays) || !current.enabled) {
-                Graph.repository.setEnabled(alarm.id, false)
-                Graph.scheduler.cancel(alarm.id)
-            } else {
-                Graph.scheduler.schedule(current)
-            }
+            Graph.wakeUps.complete(alarmId)
             delay(2200) // let the "Alarm off" confirmation linger before closing
             finish()
         }
@@ -103,6 +106,7 @@ class AlarmActivity : ComponentActivity() {
     private fun snooze() {
         completed = true
         resumeJob?.cancel()
+        Graph.ringState.stopRinging(alarmId) // synchronously, so an alarm firing right now can ring
         sendBroadcast(
             Intent(this, AlarmReceiver::class.java)
                 .setAction(AlarmContract.ACTION_SNOOZE)
@@ -113,15 +117,15 @@ class AlarmActivity : ComponentActivity() {
     }
 
     private fun showWhenLockedAndTurnScreenOn() {
+        // Squats involve no touches, so without this the screen would time out mid-mission.
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
         } else {
             @Suppress("DEPRECATION")
             window.addFlags(
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
             )
         }
     }

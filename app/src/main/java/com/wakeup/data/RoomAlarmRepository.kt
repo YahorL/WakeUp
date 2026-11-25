@@ -17,12 +17,8 @@ class RoomAlarmRepository(private val dao: AlarmDao) : AlarmRepository {
 
     override suspend fun enabledAlarms(): List<Alarm> = dao.getEnabledAlarms().map { it.toDomain() }
 
-    override suspend fun upsert(alarm: Alarm): Long {
-        val id = dao.insertAlarm(alarm.toEntity()) // REPLACE handles updates by id
-        dao.deleteMissionsFor(id)
-        dao.insertMissions(alarm.missions.mapIndexed { order, params -> params.toEntity(id, order) })
-        return id
-    }
+    override suspend fun upsert(alarm: Alarm): Long =
+        dao.upsertWithMissions(alarm.toEntity(), alarm.missions.mapIndexed { order, params -> params.toEntity(order) })
 
     override suspend fun setEnabled(id: Long, enabled: Boolean) = dao.setEnabled(id, enabled)
 
@@ -43,8 +39,9 @@ private fun Alarm.toEntity(): AlarmEntity = AlarmEntity(
     snoozeEnabled = snoozeEnabled, snoozeMinutes = snoozeMinutes, maxSnoozes = maxSnoozes,
 )
 
-private fun MissionParams.toEntity(alarmId: Long, order: Int): MissionConfigEntity = MissionConfigEntity(
-    alarmId = alarmId,
+/** The alarm id is filled in by [AlarmDao.upsertWithMissions] once the alarm row exists. */
+private fun MissionParams.toEntity(order: Int): MissionConfigEntity = MissionConfigEntity(
+    alarmId = 0,
     order = order,
     type = when (this) {
         is MathParams -> "MATH"

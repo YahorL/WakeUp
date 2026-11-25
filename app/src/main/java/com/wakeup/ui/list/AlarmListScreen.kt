@@ -35,6 +35,7 @@ fun AlarmListScreen(
     viewModel: AlarmListViewModel = viewModel(factory = AlarmListViewModel.Factory),
 ) {
     val alarms by viewModel.alarms.collectAsStateWithLifecycle()
+    val activeAlarms by viewModel.activeAlarms.collectAsStateWithLifecycle()
     val colors = Wake.colors
     val fonts = Wake.fonts
 
@@ -85,6 +86,7 @@ fun AlarmListScreen(
                 items(alarms, key = { it.id }) { alarm ->
                     AlarmCard(
                         alarm = alarm,
+                        locked = alarm.id in activeAlarms,
                         onToggle = { viewModel.setEnabled(alarm.id, it) },
                         onEdit = { onEditAlarm(alarm.id) },
                     )
@@ -104,14 +106,14 @@ fun AlarmListScreen(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun AlarmCard(alarm: Alarm, onToggle: (Boolean) -> Unit, onEdit: () -> Unit) {
+private fun AlarmCard(alarm: Alarm, locked: Boolean, onToggle: (Boolean) -> Unit, onEdit: () -> Unit) {
     val colors = Wake.colors
     val fonts = Wake.fonts
     val dim = if (alarm.enabled) 1f else 0.5f
 
     Column(Modifier.fillMaxWidth().cardSurface(22.dp).padding(horizontal = 18.dp, vertical = 16.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
-            Column(Modifier.weight(1f).alpha(dim).noRippleClickable(onClick = onEdit)) {
+            Column(Modifier.weight(1f).alpha(dim).noRippleClickable(enabled = !locked, onClick = onEdit)) {
                 Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     NumText(alarm.time12(), fontSize = 42.sp, letterSpacing = (-1).sp)
                     Text(
@@ -177,6 +179,12 @@ private fun AlarmCard(alarm: Alarm, onToggle: (Boolean) -> Unit, onEdit: () -> U
             if (squats == 0 && math == null) {
                 Badge(solid = false) {
                     Text("Tap to dismiss", color = colors.textDim, fontFamily = fonts.ui, fontWeight = FontWeight.Medium, fontSize = 12.sp)
+                }
+            }
+            if (locked) {
+                // Ringing or snoozed: it can't be opened for editing until the wake-up is done.
+                Badge(solid = false) {
+                    Text("Locked until wake-up is done", color = colors.textDim, fontFamily = fonts.ui, fontWeight = FontWeight.Medium, fontSize = 12.sp)
                 }
             }
         }

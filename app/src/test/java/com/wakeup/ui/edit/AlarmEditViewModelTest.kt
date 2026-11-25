@@ -3,6 +3,8 @@ package com.wakeup.ui.edit
 import com.wakeup.data.FakeAlarmRepository
 import com.wakeup.domain.*
 import com.wakeup.schedule.NoopScheduler
+import com.wakeup.schedule.RecordingScheduler
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.*
@@ -54,6 +56,37 @@ class AlarmEditViewModelTest {
         vm.setMathCount(0)
         vm.setMathDifficulty(Difficulty.HARD)
         assertEquals(listOf(SquatParams(50), MathParams(Difficulty.HARD, 1)), vm.draft.value.missions)
+    }
+
+    @Test fun alarmThatIsRingingOrSnoozedCannotBeSavedOrDeleted() = runTest {
+        val repo = FakeAlarmRepository()
+        val id = repo.upsert(Alarm(hour = 7, minute = 0, label = "Original"))
+        val scheduler = RecordingScheduler()
+        val vm = AlarmEditViewModel(repo, alarmId = id, scheduler = scheduler, activeAlarms = MutableStateFlow(setOf(id)))
+        advanceUntilIdle()
+        assertTrue(vm.locked.value)
+
+        vm.setLabel("Edited")
+        vm.setSquatsEnabled(false)
+        var finished = false
+        vm.save { finished = true }
+        vm.delete { finished = true }
+        advanceUntilIdle()
+
+        assertEquals("Original", repo.getAlarm(id)!!.label)
+        assertTrue(scheduler.scheduled.isEmpty() && scheduler.cancelled.isEmpty())
+        assertFalse("the editor must stay open", finished)
+    }
+
+    @Test fun alarmUnlocksOnceItsWakeUpIsFinished() = runTest {
+        val repo = FakeAlarmRepository()
+        val id = repo.upsert(Alarm(hour = 7, minute = 0))
+        val active = MutableStateFlow(setOf(id))
+        val vm = AlarmEditViewModel(repo, alarmId = id, scheduler = NoopScheduler(), activeAlarms = active)
+        advanceUntilIdle()
+        active.value = emptySet()
+        advanceUntilIdle()
+        assertFalse(vm.locked.value)
     }
 
     @Test fun saveWritesToRepository() = runTest {

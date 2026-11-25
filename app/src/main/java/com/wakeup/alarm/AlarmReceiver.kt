@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import com.wakeup.di.Graph
-import com.wakeup.schedule.SnoozePolicy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -14,17 +13,33 @@ class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         Graph.init(context)
         when (intent.action) {
-            Intent.ACTION_BOOT_COMPLETED -> rearmAll()
-            AlarmContract.ACTION_SNOOZE -> scheduleSnooze(intent)
-            else -> startRinging(context, intent) // ACTION_FIRE
+            AlarmContract.ACTION_FIRE -> fire(context, intent)
+            AlarmContract.ACTION_SNOOZE -> snooze(intent)
+            // AlarmManager forgets everything on reboot and app update: schedule every alarm
+            // again and ring any wake-up that was interrupted.
+            Intent.ACTION_BOOT_COMPLETED, Intent.ACTION_MY_PACKAGE_REPLACED -> inBackground {
+                Graph.wakeUps.rearmAll()
+                Graph.wakeUps.restoreLostWakeUps()
+            }
+            // Alarms are registered as absolute instants, so a new clock or timezone needs new
+            // instants. Pending snoozes are relative and stay untouched (ActiveAlarmGuard).
+            Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED -> inBackground {
+                Graph.wakeUps.rearmAll()
+            }
         }
     }
 
-    private fun startRinging(context: Context, intent: Intent) {
+    private fun fire(context: Context, intent: Intent) {
         val alarmId = intent.alarmId
         val snoozesUsed = intent.snoozesUsed
         if (alarmId < 0) return
-        Graph.ringState.setActive(alarmId)
+
+        // Decided synchronously, so two alarms set for the same minute can't both start ringing.
+        if (!Graph.ringState.startRinging(alarmId, snoozesUsed)) {
+            // Another alarm is already ringing: finishing that one covers this one too.
+            inBackground { Graph.wakeUps.complete(alarmId) }
+            return
+        }
 
         val service = Intent(context, AlarmService::class.java).putAlarmExtras(alarmId, snoozesUsed)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(service)
@@ -37,20 +52,11 @@ class AlarmReceiver : BroadcastReceiver() {
         runCatching { context.startActivity(AlarmActivity.relaunchIntent(context, alarmId, snoozesUsed)) }
     }
 
-    private fun scheduleSnooze(intent: Intent) {
+    private fun snooze(intent: Intent) {
         val alarmId = intent.alarmId
         val snoozesUsed = intent.snoozesUsed
         if (alarmId < 0) return
-        inBackground {
-            val alarm = Graph.repository.getAlarm(alarmId) ?: return@inBackground
-            val triggerAt = SnoozePolicy.nextSnoozeTime(System.currentTimeMillis(), alarm.snoozeMinutes)
-            Graph.scheduler.scheduleSnooze(alarmId, triggerAt, snoozesUsed + 1)
-        }
-    }
-
-    /** AlarmManager forgets everything on reboot, so re-schedule every enabled alarm. */
-    private fun rearmAll() = inBackground {
-        Graph.repository.enabledAlarms().forEach { Graph.scheduler.schedule(it) }
+        inBackground { Graph.wakeUps.snooze(alarmId, snoozesUsed) }
     }
 
     /** Runs [block] off the main thread, keeping the broadcast alive until it finishes. */

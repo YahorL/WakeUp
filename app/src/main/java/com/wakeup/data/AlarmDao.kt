@@ -21,6 +21,15 @@ interface AlarmDao {
     @Query("SELECT * FROM alarms WHERE enabled = 1")
     suspend fun getEnabledAlarms(): List<AlarmWithMissions>
 
+    /** Inserts or updates [alarm] and replaces its missions, all or nothing. Returns the alarm id. */
+    @Transaction
+    suspend fun upsertWithMissions(alarm: AlarmEntity, missions: List<MissionConfigEntity>): Long {
+        val id = insertAlarm(alarm) // REPLACE handles updates by id
+        deleteMissionsFor(id)
+        insertMissions(missions.map { it.copy(alarmId = id) })
+        return id
+    }
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAlarm(alarm: AlarmEntity): Long
 

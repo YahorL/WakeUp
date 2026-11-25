@@ -2,8 +2,8 @@ package com.wakeup.ui.list
 
 import com.wakeup.data.FakeAlarmRepository
 import com.wakeup.domain.Alarm
-import com.wakeup.schedule.AlarmScheduler
 import com.wakeup.schedule.NoopScheduler
+import com.wakeup.schedule.RecordingScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -28,21 +28,17 @@ class AlarmListViewModelTest {
         assertFalse(repo.getAlarm(id)!!.enabled)
     }
 
-    @Test fun disablingActiveAlarmKeepsItScheduled() = runTest {
+    @Test fun togglingOffCancelsAndTogglingOnSchedules() = runTest {
         val repo = FakeAlarmRepository()
         val id = repo.upsert(Alarm(hour = 7, minute = 0, enabled = true))
-        val cancels = mutableListOf<Long>()
-        val recording = object : AlarmScheduler {
-            override fun schedule(alarm: Alarm) {}
-            override fun cancel(alarmId: Long) { cancels.add(alarmId) }
-            override fun scheduleSnooze(alarmId: Long, triggerAtMillis: Long, snoozesUsed: Int) {}
-        }
-        // This alarm is mid-ring.
-        val vm = AlarmListViewModel(repo, recording, activeAlarmId = { id })
+        val scheduler = RecordingScheduler()
+        val vm = AlarmListViewModel(repo, scheduler)
         vm.setEnabled(id, false)
         advanceUntilIdle()
-        assertFalse(repo.getAlarm(id)!!.enabled)        // future occurrences off
-        assertTrue("active alarm's pending snooze must not be cancelled", cancels.isEmpty())
+        assertEquals(listOf(id), scheduler.cancelled)
+        vm.setEnabled(id, true)
+        advanceUntilIdle()
+        assertEquals(listOf(id), scheduler.scheduled)
     }
 
     @Test fun exposesAlarmsFromRepository() = runTest {
