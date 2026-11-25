@@ -15,14 +15,14 @@ import com.wakeup.ui.theme.WakeUpTheme
 fun AppTheme(content: @Composable () -> Unit) {
     val settings by Graph.settings.state.collectAsStateWithLifecycle()
 
-    // Keep the system-bar icons legible against the chosen theme.
+    // The theme is dark only: keep the system-bar icons light.
     val view = LocalView.current
     SideEffect {
         val window = (view.context as Activity).window
         val controller = WindowCompat.getInsetsController(window, view)
-        controller.isAppearanceLightStatusBars = !settings.dark
-        controller.isAppearanceLightNavigationBars = !settings.dark
+        controller.isAppearanceLightStatusBars = false
+        controller.isAppearanceLightNavigationBars = false
     }
 
-    WakeUpTheme(accent = settings.accent, dark = settings.dark, fontPairing = settings.fontPairing, content = content)
+    WakeUpTheme(palette = settings.palette, content = content)
 }

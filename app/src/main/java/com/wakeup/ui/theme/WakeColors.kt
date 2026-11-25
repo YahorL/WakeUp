@@ -1,74 +1,61 @@
 package com.wakeup.ui.theme
 
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
 /**
- * The full monochrome-plus-accent token bundle from the design. Almost everything is a neutral;
- * the accent (and its alpha-derived [accentSoft]/[glow]/[dot]) is the only chroma.
+ * A Liquid Glass palette. The orb colours are bright and only ever appear blurred (background
+ * glows, glow shadows) or as tiny indicators; [fillFrom]→[fillTo] is the darker gradient used for
+ * every solid accent surface so white text on it stays readable.
  */
-data class WakeColors(
-    val accent: Color,
-    val onAccent: Color,
-    val accentSoft: Color,
-    val bg: Color,
-    val bg2: Color,
-    val card: Color,
-    val text: Color,
-    val textDim: Color,
-    val textMute: Color,
-    val hair: Color,
-    val hairStrong: Color,
-    /** Filled active day / selected-segment fill. */
-    val selectedFill: Color,
-    /** Switch off-track. */
-    val switchOffTrack: Color,
-    /** Numpad number-key background. */
-    val keyBg: Color,
-    /** Background accent glow. */
-    val glow: Color,
-    /** Background dot-grid color. */
-    val dot: Color,
-    val error: Color,
-)
+enum class Palette(
+    val label: String,
+    val orb1: Color,
+    val orb2: Color,
+    val orb3: Color,
+    val fillFrom: Color,
+    val fillTo: Color,
+) {
+    AURORA("Aurora", Color(0xFF7B5CFF), Color(0xFF4C8DFF), Color(0xFFFF9F43), Color(0xFF6D28D9), Color(0xFF2563EB)),
+    EMBER("Ember", Color(0xFFFF6A2B), Color(0xFFFFB020), Color(0xFF8A4DFF), Color(0xFFC2410C), Color(0xFFB45309)),
+    LAGOON("Lagoon", Color(0xFF2EE6C5), Color(0xFF3D7BFF), Color(0xFF9B5CFF), Color(0xFF0F766E), Color(0xFF1D4ED8)),
+}
 
-private val ERROR = Color(0xFFE5484D)
+/** The design's colour tokens (`tokens.json`). Dark only. */
+data class WakeColors(val palette: Palette) {
+    val bg = Color(0xFF08080C)
+    val text = Color.White
+    val textSecondary = Color.White.copy(alpha = 0.62f)
+    val textTertiary = Color.White.copy(alpha = 0.50f)
+    val textMuted = Color.White.copy(alpha = 0.72f)
+    val onLight = Color(0xFF0B0B10)
+    val error = Color(0xFFFFB4B4)
+    val hairline = Color.White.copy(alpha = 0.10f)
+    val whitePill = Color.White.copy(alpha = 0.94f)
 
-fun darkColors(accent: Color) = WakeColors(
-    accent = accent,
-    onAccent = Color.White,
-    accentSoft = accent.copy(alpha = 0.22f),
-    bg = Color(0xFF0E0F10),
-    bg2 = Color(0xFF161718),
-    card = Color(0xFF1A1B1C),
-    text = Color(0xFFF2F2F0),
-    textDim = Color(0xFF8D9194),
-    textMute = Color(0xFF5E6265),
-    hair = Color.White.copy(alpha = 0.10f),
-    hairStrong = Color.White.copy(alpha = 0.18f),
-    selectedFill = Color(0xFF2A2C2D),
-    switchOffTrack = Color(0xFF2C2E30),
-    keyBg = Color(0xFF1F2122),
-    glow = accent.copy(alpha = 0.24f),
-    dot = accent.copy(alpha = 0.52f),
-    error = ERROR,
-)
+    val orb1 get() = palette.orb1
+    val orb2 get() = palette.orb2
+    val orb3 get() = palette.orb3
 
-fun lightColors(accent: Color) = WakeColors(
-    accent = accent,
-    onAccent = Color.White,
-    accentSoft = accent.copy(alpha = 0.14f),
-    bg = Color(0xFFFAFAF9),
-    bg2 = Color(0xFFF1F1EF),
-    card = Color(0xFFFFFFFF),
-    text = Color(0xFF181A1B),
-    textDim = Color(0xFF74787B),
-    textMute = Color(0xFFA3A7AA),
-    hair = Color.Black.copy(alpha = 0.085f),
-    hairStrong = Color.Black.copy(alpha = 0.16f),
-    selectedFill = Color(0xFFECECEA),
-    switchOffTrack = Color(0xFFD9D9D6),
-    keyBg = Color(0xFFFFFFFF),
-    glow = accent.copy(alpha = 0.14f),
-    dot = accent.copy(alpha = 0.30f),
-    error = ERROR,
-)
+    /** The 135° accent gradient for solid accent surfaces. */
+    val fill: Brush = Brush.linearGradient(
+        listOf(palette.fillFrom, palette.fillTo),
+        start = Offset.Zero,
+        end = Offset.Infinite,
+    )
+
+    // ── Aliases for screens not yet moved to the new tokens. Removed with the old design system. ──
+    @Deprecated("old design system") val accent get() = palette.orb2
+    @Deprecated("old design system") val onAccent get() = Color.White
+    @Deprecated("old design system") val accentSoft get() = palette.orb2.copy(alpha = 0.22f)
+    @Deprecated("old design system") val bg2 get() = Color.White.copy(alpha = 0.06f)
+    @Deprecated("old design system") val card get() = Color.White.copy(alpha = 0.08f)
+    @Deprecated("old design system") val textDim get() = textSecondary
+    @Deprecated("old design system") val textMute get() = textTertiary
+    @Deprecated("old design system") val hair get() = hairline
+    @Deprecated("old design system") val hairStrong get() = Color.White.copy(alpha = 0.18f)
+    @Deprecated("old design system") val selectedFill get() = Color.White.copy(alpha = 0.14f)
+    @Deprecated("old design system") val switchOffTrack get() = Color.White.copy(alpha = 0.10f)
+    @Deprecated("old design system") val keyBg get() = Color.White.copy(alpha = 0.08f)
+}
