@@ -24,6 +24,8 @@ class AlarmActivity : ComponentActivity() {
     private var snoozesUsed: Int = 0
     private var completed = false
     private var soundPaused = false
+    private var wakeUpRecorded = false
+    private var closeRequested = false
     private var resumeJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,7 +49,7 @@ class AlarmActivity : ComponentActivity() {
                         onAllComplete = { dismiss() },
                         onSnooze = { snooze() },
                         onEngaged = { onMissionEngaged() },
-                        onClose = { finish() },
+                        onClose = { close() },
                     )
                 }
             }
@@ -99,9 +101,19 @@ class AlarmActivity : ComponentActivity() {
         Graph.ringState.finish(alarmId) // synchronously, so an alarm firing right now can ring
         lifecycleScope.launch {
             Graph.wakeUps.complete(alarmId)
-            delay(5000) // let the "Alarm off" confirmation linger; its Done button closes sooner
+            wakeUpRecorded = true
+            if (!closeRequested) delay(5000) // let the "Alarm off" confirmation linger
             finish()
         }
+    }
+
+    /**
+     * The "Done" button. Closing ends [lifecycleScope], so if the wake-up has not been recorded
+     * yet (which re-arms or disables the alarm) the close waits for it instead of cutting it off.
+     */
+    private fun close() {
+        closeRequested = true
+        if (wakeUpRecorded) finish()
     }
 
     private fun snooze() {
