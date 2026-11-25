@@ -29,7 +29,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wakeup.domain.Alarm
 import com.wakeup.domain.Difficulty
+import com.wakeup.domain.MathParams
 import com.wakeup.domain.RepeatDays
+import com.wakeup.domain.SquatParams
 import com.wakeup.ui.DAY_CHIPS
 import com.wakeup.ui.components.*
 import com.wakeup.ui.label
@@ -188,7 +190,7 @@ private fun ChallengeBuilder(draft: Alarm, viewModel: AlarmEditViewModel) {
             )
             if (squat != null) {
                 Spacer(Modifier.height(14.dp))
-                StepperRow("Reps required", squat.squatCount, 1..50, viewModel::setSquatCount)
+                StepperRow("Reps required", squat.squatCount, SquatParams.COUNT_RANGE, viewModel::setSquatCount)
             }
         }
         Hairline()
@@ -211,7 +213,7 @@ private fun ChallengeBuilder(draft: Alarm, viewModel: AlarmEditViewModel) {
                     }
                 }
                 Spacer(Modifier.height(14.dp))
-                StepperRow("How many", math.problemCount, 1..10, viewModel::setMathCount)
+                StepperRow("How many", math.problemCount, MathParams.COUNT_RANGE, viewModel::setMathCount)
             }
         }
     }

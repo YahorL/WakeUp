@@ -58,6 +58,15 @@ class AlarmEditViewModelTest {
         assertEquals(listOf(SquatParams(50), MathParams(Difficulty.HARD, 1)), vm.draft.value.missions)
     }
 
+    @Test fun upToFiftyMathProblemsCanBeRequired() = runTest {
+        val vm = AlarmEditViewModel(FakeAlarmRepository(), alarmId = null, scheduler = NoopScheduler())
+        advanceUntilIdle()
+        vm.setMathCount(50)
+        assertEquals(50, vm.draft.value.math?.problemCount)
+        vm.setMathCount(51)
+        assertEquals(50, vm.draft.value.math?.problemCount)
+    }
+
     @Test fun alarmThatIsRingingOrSnoozedCannotBeSavedOrDeleted() = runTest {
         val repo = FakeAlarmRepository()
         val id = repo.upsert(Alarm(hour = 7, minute = 0, label = "Original"))

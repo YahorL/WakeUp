@@ -53,7 +53,7 @@ class AlarmEditViewModel(
     fun setSquatsEnabled(enabled: Boolean) =
         setMissions(squat = if (enabled) squat ?: SquatParams.DEFAULT else null)
 
-    fun setSquatCount(count: Int) = setMissions(squat = SquatParams(count.coerceIn(1, 50)))
+    fun setSquatCount(count: Int) = setMissions(squat = SquatParams(count.coerceIn(SquatParams.COUNT_RANGE)))
 
     fun setMathEnabled(enabled: Boolean) =
         setMissions(math = if (enabled) math ?: MathParams.DEFAULT else null)
@@ -62,7 +62,7 @@ class AlarmEditViewModel(
         setMissions(math = (math ?: MathParams.DEFAULT).copy(difficulty = difficulty))
 
     fun setMathCount(count: Int) =
-        setMissions(math = (math ?: MathParams.DEFAULT).copy(problemCount = count.coerceIn(1, 10)))
+        setMissions(math = (math ?: MathParams.DEFAULT).copy(problemCount = count.coerceIn(MathParams.COUNT_RANGE)))
 
     private val squat: SquatParams? get() = _draft.value.squat
     private val math: MathParams? get() = _draft.value.math
