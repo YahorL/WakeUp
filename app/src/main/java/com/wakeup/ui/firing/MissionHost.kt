@@ -15,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import com.wakeup.domain.Alarm
 import com.wakeup.domain.MathParams
@@ -54,11 +55,14 @@ fun MissionHost(
     LaunchedEffect(phase) { if (phase == Phase.Done) onAllComplete() }
 
     val shown = screen
+    // Once the alarm is off, the screen left underneath is decoration only.
+    val snooze = { if (!done) onSnooze() }
+    val engaged = { if (!done) onEngaged() }
     val onMath = shown is Phase.Mission && alarm.missions[shown.index] is MathParams
     Screen(if (onMath) OrbLayout.MATH else OrbLayout.RINGING) {
         val blur = if (done && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Modifier.blur(30.dp) else Modifier
         Box(
-            Modifier.fillMaxSize().then(blur).systemBarsPadding()
+            Modifier.fillMaxSize().then(blur).then(if (done) Modifier.clearAndSetSemantics { } else Modifier).systemBarsPadding()
                 .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 22.dp),
         ) {
             when (shown) {
@@ -66,19 +70,19 @@ fun MissionHost(
                     alarm = alarm,
                     is24h = is24h,
                     canSnooze = canSnooze,
-                    onBegin = { phase = if (alarm.missions.isEmpty()) Phase.Done else Phase.Mission(0) },
-                    onSnooze = onSnooze,
+                    onBegin = { if (!done) phase = if (alarm.missions.isEmpty()) Phase.Done else Phase.Mission(0) },
+                    onSnooze = snooze,
                 )
                 is Phase.Mission -> {
                     val advance: () -> Unit = {
-                        phase = if (shown.index + 1 >= alarm.missions.size) Phase.Done else Phase.Mission(shown.index + 1)
+                        if (!done) phase = if (shown.index + 1 >= alarm.missions.size) Phase.Done else Phase.Mission(shown.index + 1)
                     }
                     when (val params = alarm.missions[shown.index]) {
-                        is MathParams -> MathMissionContent(alarm, params, is24h, onComplete = advance, onEngaged = onEngaged)
+                        is MathParams -> MathMissionContent(alarm, params, is24h, onComplete = advance, onEngaged = engaged)
                         is SquatParams -> SquatMissionContent(
                             alarm, params, is24h,
                             isLast = shown.index + 1 >= alarm.missions.size,
-                            onComplete = advance, onEngaged = onEngaged,
+                            onComplete = advance, onEngaged = engaged,
                         )
                     }
                 }

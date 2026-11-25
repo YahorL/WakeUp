@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -43,6 +44,8 @@ fun Modifier.riseIn(delayMs: Int = 0): Modifier = composed {
     }
     graphicsLayer {
         val p = progress.value
+        // Modulate rather than render offscreen, so glows drawn outside the bounds are not clipped.
+        compositingStrategy = CompositingStrategy.ModulateAlpha
         alpha = p
         translationY = (1f - p) * 16.dp.toPx()
         val s = 0.98f + 0.02f * p

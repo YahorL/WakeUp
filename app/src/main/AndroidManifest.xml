@@ -50,6 +50,7 @@
 
         <activity
             android:name=".alarm.AlarmActivity"
+            android:screenOrientation="portrait"
             android:exported="false"
             android:launchMode="singleInstance"
             android:excludeFromRecents="true"

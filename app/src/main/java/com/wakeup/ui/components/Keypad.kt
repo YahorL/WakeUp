@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.wakeup.ui.firing.MathKey
 import com.wakeup.ui.theme.Wake
@@ -24,12 +25,12 @@ private val KEYS: List<MathKey> =
 
 /** The math keypad: 1–9, then backspace, 0 and the gradient submit key. */
 @Composable
-fun Keypad(onKey: (MathKey) -> Unit, modifier: Modifier = Modifier) {
+fun Keypad(onKey: (MathKey) -> Unit, modifier: Modifier = Modifier, keyHeight: Dp = 66.dp) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         KEYS.chunked(3).forEachIndexed { row, keys ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 keys.forEachIndexed { col, key ->
-                    Key(key, Modifier.weight(1f).riseIn(200 + (row * 3 + col) * 30)) { onKey(key) }
+                    Key(key, keyHeight, Modifier.weight(1f).riseIn(200 + (row * 3 + col) * 30)) { onKey(key) }
                 }
             }
         }
@@ -37,7 +38,7 @@ fun Keypad(onKey: (MathKey) -> Unit, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun Key(key: MathKey, modifier: Modifier, onClick: () -> Unit) {
+private fun Key(key: MathKey, height: Dp, modifier: Modifier, onClick: () -> Unit) {
     val colors = Wake.colors
     val shape = RoundedCornerShape(22.dp)
     val description = when (key) {
@@ -54,7 +55,7 @@ private fun Key(key: MathKey, modifier: Modifier, onClick: () -> Unit) {
     }
     Box(
         modifier
-            .height(66.dp)
+            .height(height)
             .semantics { contentDescription = description }
             .pressable(onClick = onClick)
             .then(look),

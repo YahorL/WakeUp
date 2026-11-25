@@ -71,8 +71,9 @@ fun daysText(mask: Int): String = when (mask) {
 
 val Difficulty.label: String get() = name.lowercase().replaceFirstChar { it.uppercase() }
 
-private fun squatsText(count: Int) = if (count == 1) "1 squat" else "$count squats"
-private fun problemsText(count: Int) = if (count == 1) "1 problem" else "$count problems"
+fun squatsText(count: Int) = if (count == 1) "1 squat" else "$count squats"
+fun problemsText(count: Int) = if (count == 1) "1 problem" else "$count problems"
+fun repsText(count: Int) = if (count == 1) "1 rep" else "$count reps"
 
 /** The editor's sentence describing what it takes to turn the alarm off. */
 fun challengeSummary(squat: SquatParams?, math: MathParams?): String {

@@ -19,6 +19,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalView
@@ -80,7 +81,10 @@ fun AlarmOffOverlay(recap: String, onDone: () -> Unit) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Box(
                 Modifier.size(120.dp)
-                    .graphicsLayer { scaleX = pop.value; scaleY = pop.value; alpha = popAlpha.value }
+                    .graphicsLayer {
+                        compositingStrategy = CompositingStrategy.ModulateAlpha // keeps the glow outside the bounds
+                        scaleX = pop.value; scaleY = pop.value; alpha = popAlpha.value
+                    }
                     .glow(colors.orb2.copy(alpha = 0.75f), blur = 70.dp, spread = (-20).dp, offsetY = 30.dp)
                     .surface(CircleShape, colors.fill, border = white(0.25f), highlight = white(0.35f)),
                 contentAlignment = Alignment.Center,

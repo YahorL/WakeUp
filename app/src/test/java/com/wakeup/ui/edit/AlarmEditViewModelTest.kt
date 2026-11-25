@@ -108,4 +108,14 @@ class AlarmEditViewModelTest {
         assertEquals(1, repo.enabledAlarms().size)
         assertEquals(9, repo.enabledAlarms()[0].hour)
     }
+
+    @Test fun hourAndMinuteCanBeSetIndependently() = runTest {
+        val vm = AlarmEditViewModel(FakeAlarmRepository(), alarmId = null, scheduler = NoopScheduler())
+        advanceUntilIdle()
+        vm.setTime(6, 30)
+        // Two wheels settling back to back must not overwrite each other's value.
+        vm.setHour(7)
+        vm.setMinute(45)
+        assertEquals(7 to 45, vm.draft.value.hour to vm.draft.value.minute)
+    }
 }

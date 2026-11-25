@@ -26,6 +26,7 @@ import com.wakeup.mission.AccelerometerSquatDetector
 import com.wakeup.ui.components.Label
 import com.wakeup.ui.components.ProgressRing
 import com.wakeup.ui.components.bump
+import com.wakeup.ui.squatsText
 import com.wakeup.ui.theme.Wake
 import com.wakeup.ui.theme.riseIn
 import kotlinx.coroutines.delay
@@ -83,7 +84,7 @@ fun SquatMissionContent(
                 ProgressRing(
                     count = reps, target = target, size = size,
                     modifier = Modifier.riseIn(200).semantics(mergeDescendants = true) {
-                        contentDescription = if (finished) "Squats complete" else "$reps of $target squats"
+                        contentDescription = if (finished) "Squats complete" else "$reps of ${squatsText(target)}"
                     },
                 ) {
                     val scale = size.value / 272f
@@ -92,7 +93,7 @@ fun SquatMissionContent(
                             "$reps", 96f * scale, Modifier.bump(reps),
                             weight = FontWeight.ExtraLight, tracking = -0.05f, lineHeight = 1f, tabular = true, fixed = true,
                         )
-                        Label("of $target squats", 15f, color = colors.textMuted, maxLines = 1, fixed = true)
+                        Label("of ${squatsText(target)}", 15f, color = colors.textMuted, maxLines = 1, fixed = true)
                     }
                 }
                 Label(

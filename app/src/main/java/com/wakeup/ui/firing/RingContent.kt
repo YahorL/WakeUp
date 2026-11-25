@@ -45,6 +45,7 @@ import com.wakeup.ui.components.glow
 import com.wakeup.ui.components.surface
 import com.wakeup.ui.components.white
 import com.wakeup.ui.label
+import com.wakeup.ui.repsText
 import com.wakeup.ui.list.ClockDisplay
 import com.wakeup.ui.theme.LocalReduceMotion
 import com.wakeup.ui.theme.Wake
@@ -67,7 +68,13 @@ fun RingHeader(alarm: Alarm, is24h: Boolean, modifier: Modifier = Modifier) {
             BreathingDot()
             MonoLabel(alarm.label.ifBlank { "Alarm" }, color = colors.text)
         }
-        ClockDisplay(alarm.clock(is24h), 104f, Modifier.padding(top = 14.dp).riseIn(80))
+        Box(Modifier.fillMaxWidth().padding(top = 14.dp).riseIn(80), contentAlignment = Alignment.Center) {
+            // Sized to the screen first, then centred.
+            BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                val perUnit = if (is24h) 2.5f else 3.1f
+                ClockDisplay(alarm.clock(is24h), minOf(104f, maxWidth.value / perUnit))
+            }
+        }
         Label(date, 15f, Modifier.padding(top = 8.dp).riseIn(140), color = colors.textSecondary, maxLines = 1)
     }
 }
@@ -153,7 +160,7 @@ internal fun StepsPanel(alarm: Alarm, squatReps: Int?, onContinue: (() -> Unit)?
                 icon = WakeIcon.SquatDown, accent = true, highlighted = active,
                 title = "Squats",
                 trailing = if (active) "$squatReps / ${squat.squatCount}" else null,
-                subtitle = if (active) null else "${squat.squatCount} reps · counted by motion sensor",
+                subtitle = if (active) null else "${repsText(squat.squatCount)} · counted by motion sensor",
                 progress = if (active) squatReps!!.toFloat() / squat.squatCount else null,
             )
         }

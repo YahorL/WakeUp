@@ -4,6 +4,7 @@ import android.text.format.DateFormat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -57,7 +58,9 @@ import com.wakeup.ui.daysText
 import com.wakeup.ui.formatCountdown
 import com.wakeup.ui.label
 import com.wakeup.ui.nextAlarm
+import com.wakeup.ui.problemsText
 import com.wakeup.ui.repeatSummary
+import com.wakeup.ui.squatsText
 import com.wakeup.ui.theme.OrbLayout
 import com.wakeup.ui.theme.Screen
 import com.wakeup.ui.theme.Wake
@@ -159,7 +162,15 @@ fun AlarmListScreen(
 
 /** The big clock digits, with a small AM/PM beside them on a 12-hour clock. */
 @Composable
-internal fun ClockDisplay(clock: ClockText, size: Float, modifier: Modifier = Modifier, tracking: Float = -0.05f) {
+internal fun ClockDisplay(clock: ClockText, size: Float, modifier: Modifier = Modifier, tracking: Float = -0.05f, fit: Boolean = false) {
+    if (fit) {
+        // Shrink the digits on narrow screens so the time (and AM/PM) never gets cut off.
+        BoxWithConstraints(modifier) {
+            val perUnit = if (clock.period == null) 2.5f else 3.1f // widest time, in multiples of the font size
+            ClockDisplay(clock, minOf(size, maxWidth.value / perUnit), tracking = tracking)
+        }
+        return
+    }
     Row(modifier, verticalAlignment = Alignment.Bottom) {
         Label(
             clock.time, size, Modifier.alignByBaseline(),
@@ -192,17 +203,17 @@ private fun NextAlarmCard(next: NextAlarm, nowMillis: Long, is24h: Boolean, modi
                 Label("in ${formatCountdown(next.triggerAtMillis - nowMillis)}", 13f, maxLines = 1)
             }
         }
-        ClockDisplay(alarm.clock(is24h), 96f)
+        ClockDisplay(alarm.clock(is24h), 96f, Modifier.fillMaxWidth(), fit = true)
 
         val squat = alarm.squat
         val math = alarm.math
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             if (squat != null) {
-                ChallengeTile(WakeIcon.SquatDown, active = true, "${squat.squatCount} squats", "Motion sensor", Modifier.weight(1f))
+                ChallengeTile(WakeIcon.SquatDown, active = true, squatsText(squat.squatCount), "Motion sensor", Modifier.weight(1f))
             }
             if (math != null) {
                 // The second tile is neutral so only one accent tile draws the eye, as in the design.
-                ChallengeTile(WakeIcon.MathOps, active = squat == null, "${math.problemCount} problems", math.difficulty.label, Modifier.weight(1f))
+                ChallengeTile(WakeIcon.MathOps, active = squat == null, problemsText(math.problemCount), math.difficulty.label, Modifier.weight(1f))
             }
             if (squat == null && math == null) {
                 ChallengeTile(WakeIcon.Bell, active = false, "No challenge", "Single tap", Modifier.weight(1f))

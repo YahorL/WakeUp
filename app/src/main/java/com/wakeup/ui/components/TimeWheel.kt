@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -46,11 +47,20 @@ private val BAND_HEIGHT = 92.dp
 
 /**
  * The inline time picker: hour and minute wheels (plus AM/PM on a 12-hour clock) that scroll and
- * snap, over a glass selection band. Tapping the value above or below steps to it. [onChange]
- * always reports 24-hour time.
+ * snap, over a glass selection band. Tapping the value above or below steps to it. Hours are
+ * always reported in 24-hour terms, and each wheel reports the moment it is released, so the new
+ * time is already saved while the wheel is still gliding into place.
  */
 @Composable
-fun TimeWheel(hour: Int, minute: Int, is24h: Boolean, onChange: (hour: Int, minute: Int) -> Unit, modifier: Modifier = Modifier) {
+fun TimeWheel(
+    hour: Int,
+    minute: Int,
+    is24h: Boolean,
+    onHourChange: (Int) -> Unit,
+    onMinuteChange: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val currentHour by rememberUpdatedState(hour)
     val size = if (is24h) 88f else 72f
     Box(modifier.fillMaxWidth().height(WHEEL_HEIGHT), contentAlignment = Alignment.Center) {
         Box(
@@ -59,17 +69,17 @@ fun TimeWheel(hour: Int, minute: Int, is24h: Boolean, onChange: (hour: Int, minu
         )
         Row(Modifier.fillMaxWidth().fillMaxHeight().padding(horizontal = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             if (is24h) {
-                Wheel(24, hour, { "%02d".format(it) }, "Hour", size, Modifier.weight(1f)) { onChange(it, minute) }
+                Wheel(24, hour, { "%02d".format(it) }, "Hour", size, Modifier.weight(1f), onSettle = onHourChange)
             } else {
                 Wheel(12, hour % 12, { (if (it == 0) 12 else it).toString() }, "Hour", size, Modifier.weight(1f)) {
-                    onChange(it + if (hour >= 12) 12 else 0, minute)
+                    onHourChange(it + if (currentHour >= 12) 12 else 0)
                 }
             }
             Label(":", size * 0.82f, Modifier.offset(y = (-4).dp), weight = FontWeight.ExtraLight, color = white(0.7f), fixed = true)
-            Wheel(60, minute, { "%02d".format(it) }, "Minute", size, Modifier.weight(1f)) { onChange(hour, it) }
+            Wheel(60, minute, { "%02d".format(it) }, "Minute", size, Modifier.weight(1f), onSettle = onMinuteChange)
             if (!is24h) {
                 Wheel(2, if (hour >= 12) 1 else 0, { if (it == 0) "AM" else "PM" }, "AM or PM", 30f, Modifier.weight(0.6f), loop = false) {
-                    onChange(hour % 12 + if (it == 1) 12 else 0, minute)
+                    onHourChange(currentHour % 12 + if (it == 1) 12 else 0)
                 }
             }
         }
@@ -97,10 +107,13 @@ private fun Wheel(
 
     fun clamp(target: Float) = if (loop) target else target.coerceIn(0f, (count - 1).toFloat())
 
-    // Follow a value changed from outside (the alarm loading, or another wheel's AM/PM).
+    // What this wheel last reported. A different [value] arriving means it was changed from
+    // outside (the alarm loading, or the AM/PM wheel), so the wheel jumps to follow it.
+    val reported = remember { intArrayOf(value) }
     LaunchedEffect(value) {
         val shown = wrap(position.targetValue.roundToInt(), count)
-        if (shown != value) {
+        if (value != reported[0] && shown != value) {
+            reported[0] = value
             var delta = value - shown
             if (loop && abs(delta) > count / 2) delta -= count * (if (delta > 0) 1 else -1)
             position.snapTo(position.targetValue.roundToInt() + delta.toFloat())
@@ -109,8 +122,10 @@ private fun Wheel(
 
     fun settleAt(target: Int) = scope.launch {
         val t = clamp(target.toFloat())
+        // Report first: the glide into place can take half a second, and Save may be tapped meanwhile.
+        reported[0] = wrap(t.roundToInt(), count)
+        currentOnSettle.value(reported[0])
         if (reduceMotion) position.snapTo(t) else position.animateTo(t, spring(dampingRatio = 0.8f, stiffness = 220f))
-        currentOnSettle.value(wrap(t.roundToInt(), count))
     }
 
     val drag = rememberDraggableState { delta ->

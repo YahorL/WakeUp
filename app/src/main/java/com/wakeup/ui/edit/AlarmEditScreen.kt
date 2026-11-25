@@ -124,7 +124,7 @@ fun AlarmEditScreen(
                     .padding(start = 14.dp, end = 14.dp, top = 14.dp, bottom = 18.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                TimeWheel(draft.hour, draft.minute, is24h, viewModel::setTime)
+                TimeWheel(draft.hour, draft.minute, is24h, viewModel::setHour, viewModel::setMinute)
                 Spacer(Modifier.height(4.dp))
                 val ringsIn = ringsInText(draft)
                 Chip { Label(ringsIn, 13f, Modifier.bump(ringsIn), maxLines = 1) }

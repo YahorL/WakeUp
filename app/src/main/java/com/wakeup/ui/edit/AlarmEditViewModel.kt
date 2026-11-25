@@ -45,6 +45,10 @@ class AlarmEditViewModel(
 
     fun setTime(hour: Int, minute: Int) = _draft.update { it.copy(hour = hour, minute = minute) }
 
+    fun setHour(hour: Int) = _draft.update { it.copy(hour = hour) }
+
+    fun setMinute(minute: Int) = _draft.update { it.copy(minute = minute) }
+
     fun setLabel(label: String) = _draft.update { it.copy(label = label) }
 
     fun toggleRepeatDay(dayIndex: Int) =

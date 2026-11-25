@@ -36,6 +36,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.LinearGradientShader
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Shader
@@ -249,7 +250,10 @@ fun BreathingDot(modifier: Modifier = Modifier) {
     }
     Box(
         modifier.size(6.dp)
-            .graphicsLayer { scaleX = scale; scaleY = scale; this.alpha = alpha }
+            .graphicsLayer {
+                compositingStrategy = CompositingStrategy.ModulateAlpha // keeps the glow outside the bounds
+                scaleX = scale; scaleY = scale; this.alpha = alpha
+            }
             .glow(color, blur = 10.dp)
             .background(color, CircleShape),
     )
@@ -283,6 +287,7 @@ fun Modifier.bump(key: Any?): Modifier = composed {
     }
     graphicsLayer {
         val p = progress.value
+        compositingStrategy = CompositingStrategy.ModulateAlpha
         translationY = (1f - p) * 8.dp.toPx()
         val s = 0.9f + 0.1f * p
         scaleX = s

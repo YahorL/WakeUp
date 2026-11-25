@@ -10,6 +10,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -103,6 +104,9 @@ fun MathMissionContent(alarm: Alarm, params: MathParams, is24h: Boolean, onCompl
     }
 
     val current = (solved + 1).coerceAtMost(params.problemCount)
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+    // On short screens the keys shrink (down to 44dp) so the problem and answer stay in view.
+    val keyHeight = ((maxHeight - 330.dp - 30.dp) / 4).coerceIn(44.dp, 66.dp)
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
             Row(
@@ -159,7 +163,8 @@ fun MathMissionContent(alarm: Alarm, params: MathParams, is24h: Boolean, onCompl
                 }
             }
         }
-        Keypad(::onKey, Modifier.padding(top = 16.dp))
+        Keypad(::onKey, Modifier.padding(top = 16.dp), keyHeight = keyHeight)
+    }
     }
 }
 

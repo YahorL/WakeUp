@@ -71,4 +71,13 @@ class AlarmDisplayTest {
         assertEquals("3 problems done. Good morning.", recapText(null, math))
     }
     @Test fun recapForNoChallenge() = assertEquals("Good morning.", recapText(null, null))
+
+    @Test fun countsUseSingularForOne() {
+        assertEquals("1 squat", squatsText(1))
+        assertEquals("15 squats", squatsText(15))
+        assertEquals("1 problem", problemsText(1))
+        assertEquals("3 problems", problemsText(3))
+        assertEquals("1 rep", repsText(1))
+        assertEquals("15 reps", repsText(15))
+    }
 }
