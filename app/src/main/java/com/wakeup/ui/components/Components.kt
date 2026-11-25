@@ -50,12 +50,6 @@ fun Modifier.cardSurface(radius: Dp): Modifier {
     return clip(shape).background(Wake.colors.card).border(1.dp, Wake.colors.hair, shape)
 }
 
-/** 1dp full-width divider. */
-@Composable
-fun Hairline(modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxWidth().height(1.dp).background(Wake.colors.hair))
-}
-
 /** Tabular numerals in the theme's number face — clock times, counters, keypad digits. */
 @Composable
 fun NumText(
